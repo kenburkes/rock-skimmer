@@ -527,6 +527,36 @@ body {
       },
       lead: { wave: 'square', vol: 0.04, vib: 9, echo: true, cut: 2600 }
     },
+    // bayou: slow swampy blues with a walking bass
+    swamp: {
+      bpm: 76, bar: 16, chords: [[52, 55, 59, 62], [57, 60, 64, 67], [52, 55, 59, 62], [59, 63, 66, 69]], bass: [40, 45, 40, 47],
+      melody: [[0, 76, 3], [3, 79, 1], [4, 81, 4], [8, 79, 2], [10, 76, 6], [16, 74, 3], [19, 76, 1], [20, 79, 8], [32, 76, 3], [35, 79, 1], [36, 83, 4], [40, 81, 4], [44, 79, 4], [48, 78, 3], [51, 76, 1], [52, 74, 12]],
+      play(I, s, bar, t, st) {
+        const ch = this.chords[bar], walk = [0, 7, 9, 10];
+        if (s % 4 === 0) I.bass(this.bass[bar] + walk[s / 4], t, st * 3, 'triangle', 0.15, 600);
+        if (s === 0) I.pad(ch, t, st * 16, 700, 0.018, 'triangle');
+        if (s % 4 === 3) I.pluck(ch[(s >> 2) % 4] + 12, t, 0.025, 'triangle', 0.7);
+        if (s === 0 || s === 8) I.kick(t, 0.3);
+        if (s === 4 || s === 12) I.snare(t, 0.12, 0.12);
+        if (s % 4 === 0 || s % 4 === 3) I.hat(t, 0.02);
+      },
+      lead: { wave: 'sawtooth', vol: 0.03, vib: 12, echo: true, cut: 1400 }
+    },
+    // reservoir storm: dark driving minor rock
+    storm: {
+      bpm: 140, bar: 16, chords: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], bass: [38, 34, 36, 33],
+      melody: [[0, 74, 4], [4, 77, 4], [8, 81, 6], [14, 79, 2], [16, 77, 4], [20, 74, 4], [24, 76, 8], [32, 74, 4], [36, 77, 4], [40, 82, 6], [46, 81, 2], [48, 79, 4], [52, 76, 4], [56, 73, 8]],
+      play(I, s, bar, t, st) {
+        const ch = this.chords[bar];
+        if (s % 2 === 0) I.bass(this.bass[bar] + (s % 8 === 6 ? 12 : 0), t, st * 1.6, 'sawtooth', 0.1, 900);
+        if (s === 0) I.pad(ch, t, st * 16, 1200, 0.02, 'sawtooth');
+        if (s % 4 === 2) I.stab(ch.map(n => n + 12), t, st * 0.8, 'square', 0.016, 1800);
+        if (s % 4 === 0) I.kick(t, 0.5);
+        if (s === 4 || s === 12) I.snare(t, 0.3, 0.2, true);
+        I.hat(t, s % 2 ? 0.02 : 0.04);
+      },
+      lead: { wave: 'square', vol: 0.035, vib: 6, echo: true, cut: 2200 }
+    },
     // beach: sunny boardwalk synth-pop
     beach: {
       bpm: 118, bar: 16, chords: [[62, 66, 69], [55, 59, 62], [59, 62, 66], [57, 61, 64]], bass: [50, 43, 47, 45],
@@ -664,11 +694,30 @@ body {
     } else if (levelId === 'quarry') {  // still water, echoey splashes and kids far off
       f.type = 'lowpass'; f.frequency.value = 650; g.gain.value = 0.03;
       timer = setInterval(() => { if (Math.random() < 0.3) chirp(900 + Math.random() * 300, 0.25, 0.008); }, 2500);
+    } else if (levelId === 'swamp') {   // crickets and bullfrogs
+      f.type = 'lowpass'; f.frequency.value = 380; g.gain.value = 0.025;
+      const croak = () => {
+        const t = a.currentTime + 0.01, o = a.createOscillator(), m = a.createOscillator(), mg = a.createGain(), cg = a.createGain(), lp = a.createBiquadFilter();
+        o.type = 'sawtooth'; o.frequency.value = 85 + Math.random() * 25; m.frequency.value = 24; mg.gain.value = 35; m.connect(mg).connect(o.frequency);
+        lp.type = 'lowpass'; lp.frequency.value = 450;
+        cg.gain.setValueAtTime(0.0001, t); cg.gain.exponentialRampToValueAtTime(0.04, t + 0.05); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.connect(lp).connect(cg).connect(out); o.start(t); m.start(t); o.stop(t + 0.55); m.stop(t + 0.55);
+      };
+      timer = setInterval(() => { for (let k = 0; k < 3; k++) setTimeout(() => chirp(4600, 0.03, 0.01), k * 50); if (Math.random() < 0.35) croak(); }, 1000);
+    } else if (levelId === 'storm') {   // heavy rain and gusts
+      f.type = 'bandpass'; f.frequency.value = 1700; f.Q.value = 0.35; g.gain.value = 0.07;
     } else {                            // rain on the street
       f.type = 'highpass'; f.frequency.value = 2200; g.gain.value = 0.045;
     }
     src.connect(f).connect(g).connect(out); src.start();
     amb = { a, out, stop() { try { src.stop(); } catch (e) {} if (timer) clearInterval(timer); } };
+  }
+  function thunder(delay) {
+    const a = audio(); if (!a) return;
+    const t = a.currentTime + (delay || 0), s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    s.buffer = noiseBuf(a, 3); f.type = 'lowpass'; f.frequency.value = 170;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.4, t + 0.08); g.gain.exponentialRampToValueAtTime(0.15, t + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+    s.connect(f).connect(g).connect(a.destination); s.start(t); s.stop(t + 2.9);
   }
   function cheer() {
     const a = audio(); if (!a) return;
@@ -769,6 +818,7 @@ body {
     surfer: ['Hey! Watch it, grom!', 'a surfer', 'Wait for the surfer to ride past.'],
     gull: ['Squawk!', 'a seagull', 'The gulls fly off when a stone lands close by.'],
     crystal: ['Zing! Hit a moon crystal.', 'a moon crystal', 'Throw around the glowing crystals.'],
+    gator: ['Chomp! The gator got it.', 'the gator', 'Wait for the gator to swim past.'],
     ufo: ['Zapped by the UFO!', 'the UFO', 'Wait for the UFO to drift out of the way.']
   };
   function finish(sunk, why) {
@@ -978,10 +1028,15 @@ body {
     }
     if (L.rain) {
       rainT += dt;
-      while (rainT > 0.035) { rainT -= 0.035; rainRings.push({ x: (Math.random() - 0.5) * 2 * L.banks.hw, z: 3 + Math.random() * 40, t: 0 }); }
+      while (rainT > 0.035) { rainT -= 0.035; rainRings.push({ x: (Math.random() - 0.5) * 2 * (L.banks ? L.banks.hw : 8), z: 3 + Math.random() * 40, t: 0 }); }
       for (const r of rainRings) r.t += dt;
       rainRings = rainRings.filter(r => r.t < 0.6);
     }
+    if (levelId === 'storm') {
+      boltT -= dt; if (bolt) bolt.t += dt;
+      if (boltT <= 0) { bolt = { t: 0, x: 0.15 + Math.random() * 0.7, seed: Math.random() * 100 | 0 }; boltT = 6 + Math.random() * 7; thunder(0.3 + Math.random() * 0.6); }
+      if (bolt && bolt.t > 0.8) bolt = null;
+    } else bolt = null;
     wind = L.wind ? L.wind * (Math.sin(clock * 0.31) + 0.45 * Math.sin(clock * 1.27 + 1)) : 0;
     stepObstacles(dt);
     for (const o of obstacles) if (o.sunk && o.sunk < 1.2) o.sunk += dt;
@@ -1050,6 +1105,22 @@ body {
       banks: { hw: 6, color: '#a8977c', edge: '#7a6a52', kind: 'cliff' },
       current: 0, ret: 0.01, rain: false, ledge: true, vyCap: 2.8
     },
+    swamp: {
+      name: 'Bayou at night', short: 'Bayou', tip: 'Fireflies, frogs and a gator that cruises across. Wait for the gator, and aim between the lily pads.',
+      sky: [[0, '#0b1626'], [0.5, '#1c3442'], [0.85, '#3a6258'], [1, '#6f9472']],
+      sun: { x: 0.74, fy: 0.32, r: 15, core: '#f2f5e4', glow: '200,230,205' },
+      water: [[0, '#6c8c74'], [0.12, '#3b574a'], [0.5, '#1c302c'], [1, '#0b1816']],
+      streak: '215,238,215', glint: '200,235,210', far: 'cypress', farC: '#0e1d1a',
+      banks: null, current: 0, ret: 0.02, rain: false
+    },
+    storm: {
+      name: 'Reservoir in a thunderstorm', short: 'Reservoir', tip: 'The last big one! Wind, rain and lightning. Watch the wind arrow and dodge the buoys and the canoe.',
+      sky: [[0, '#161b28'], [0.5, '#2e3548'], [0.85, '#515b74'], [1, '#757e93']],
+      sun: null,
+      water: [[0, '#7a8592'], [0.12, '#535d6b'], [0.5, '#2c3441'], [1, '#131922']],
+      streak: null, glint: '220,230,242', far: 'dam', farC: '#272d3a',
+      banks: null, current: 0, ret: 0.024, rain: true, wind: 1.3
+    },
     // ---- secret spots ----
     beach: {
       name: 'Boardwalk beach at sunset', short: 'Beach', secret: true, tip: 'Secret spot! Ocean swells roll in. Watch for surfers and seagulls. Beach balls give a bonus bounce.',
@@ -1068,7 +1139,7 @@ body {
       banks: null, current: 0, ret: 0.012, rain: false, grav: 0.4, vyCap: 1.0, elev: -2
     }
   };
-  const LEVEL_IDS = ['pond', 'river', 'creek', 'street', 'lake', 'quarry'];
+  const LEVEL_IDS = ['pond', 'river', 'creek', 'street', 'lake', 'quarry', 'swamp', 'storm'];
   const SECRET_IDS = ['beach', 'moon'], SECRET_NEED = { beach: 12, moon: 18 };
   // goals and difficulty: each level needs more skips and has a smaller green zone that swings faster
   // later levels also punish a release outside the green more (qFloor / qFall)
@@ -1078,7 +1149,7 @@ body {
   Object.assign(LEVELS.street, { goal: 18, sweet: [17, 23], period: 1.4, qFloor: 0, qFall: 4 });
   Object.assign(LEVELS.lake, { goal: 18, sweet: [17.5, 22.5], period: 1.3, qFloor: 0, qFall: 4 });
   // stars: 1 for passing, 2 and 3 for going further
-  const STARS = { pond: [12, 16, 19], river: [14, 19, 23], creek: [16, 19, 21], street: [18, 20, 21], lake: [18, 20, 22], quarry: [20, 21, 22], beach: [20, 22, 24], moon: [20, 22, 24] };
+  const STARS = { pond: [12, 16, 19], river: [14, 19, 23], creek: [16, 19, 21], street: [18, 20, 21], lake: [18, 20, 22], quarry: [20, 21, 22], swamp: [21, 22, 23], storm: [22, 23, 24], beach: [20, 22, 24], moon: [20, 22, 24] };
   Object.assign(LEVELS.beach, { goal: 20, sweet: [18.5, 21.5], period: 1.15, qFloor: 0, qFall: 3, rim: '255,180,140' });
   Object.assign(LEVELS.moon, { goal: 20, sweet: [18.5, 21.5], period: 1.1, qFloor: 0, qFall: 3, rim: '170,200,255' });
   const totalStars = () => LEVEL_IDS.reduce((n, id) => n + starsFor(id, bestOf(id)), 0);
@@ -1086,13 +1157,15 @@ body {
   const bestOf = id => (store.get('rs-best-' + id, null) || (id === 'pond' ? store.get('rs-best', null) : null) || { skips: 0 }).skips;
   const starText = n => `<span class="stars">${'★'.repeat(n)}<i>${'★'.repeat(3 - n)}</i></span>`;
   Object.assign(LEVELS.quarry, { goal: 20, sweet: [18, 22], period: 1.2, qFloor: 0, qFall: 3 });
+  Object.assign(LEVELS.swamp, { goal: 21, sweet: [18.8, 22.2], period: 1.15, qFloor: 0, qFall: 3, rim: '205,240,205' });
+  Object.assign(LEVELS.storm, { goal: 22, sweet: [19, 22], period: 1.05, qFloor: 0, qFall: 3, rim: '215,225,255' });
   let passed = store.get('rs-passed-v2', []);
   if (!Array.isArray(passed)) passed = [];
   LEVELS.pond.rim = '255,170,110'; LEVELS.river.rim = '255,250,230'; LEVELS.creek.rim = '215,255,170'; LEVELS.street.rim = '255,205,140'; LEVELS.lake.rim = '255,190,170'; LEVELS.quarry.rim = '255,248,225';
   let levelId = store.get('rs-level', 'pond');
   if (!LEVELS[levelId] || (SECRET_IDS.includes(levelId) && totalStars() < SECRET_NEED[levelId])) levelId = 'pond';
   let L = LEVELS[levelId];
-  let rainRings = [], rainT = 0, wind = 0;
+  let rainRings = [], rainT = 0, wind = 0, bolt = null, boltT = 3;
 
   // ---------- drawing ----------
   function drawSky() {
@@ -1135,6 +1208,24 @@ body {
       const sh = (clock % 9) / 9;                  // a shooting star now and then
       if (sh < 0.12) { const k = sh / 0.12, sx = W * (0.1 + 0.5 * k), sy = horizon * (0.1 + 0.25 * k); ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - 30, sy - 14); ctx.stroke(); }
     }
+    if (levelId === 'swamp') {           // a few stars over the bayou
+      for (let i = 0; i < 50; i++) {
+        const x = hash(i + 3300) * W, y = hash(i + 3310) * horizon * 0.6, tw = 0.5 + 0.5 * Math.sin(clock * (1 + hash(i + 3320) * 2) + i);
+        ctx.fillStyle = `rgba(235,245,230,${0.25 + 0.5 * tw * hash(i + 3330)})`; ctx.fillRect(x, y, 1.3, 1.3);
+      }
+    }
+    if (levelId === 'storm' && bolt) {   // lightning
+      const a = bolt.t < 0.1 ? 1 : Math.max(0, 1 - (bolt.t - 0.1) / 0.5);
+      ctx.fillStyle = `rgba(200,210,240,${0.35 * a})`; ctx.fillRect(0, 0, W, horizon);
+      if (bolt.t < 0.35 && (bolt.t < 0.06 || bolt.t > 0.12)) {
+        let x = bolt.x * W, y = 0; const yEnd = horizon - 34;
+        ctx.strokeStyle = 'rgba(245,248,255,0.95)'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round';
+        ctx.shadowColor = 'rgba(180,200,255,0.9)'; ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        for (let k = 1; y < yEnd; k++) { y += yEnd / 9; x += (hash(bolt.seed + k) - 0.5) * 34; ctx.lineTo(x, Math.min(y, yEnd)); if (k === 4) { ctx.moveTo(x, y); ctx.lineTo(x + 22, y + 26); ctx.moveTo(x, y); } }
+        ctx.stroke(); ctx.shadowBlur = 0;
+      }
+    }
     if (levelId === 'creek') {           // light coming through the leaves
       ctx.fillStyle = 'rgba(255,250,200,0.07)';
       for (let i = 0; i < 4; i++) {
@@ -1150,6 +1241,7 @@ body {
     street: { n: 6, size: 34, flat: 0.5, y0: 0.05, y1: 0.55, speed: 3, lit: '128,133,150', base: '62,66,80', a: 0.85 },
     lake: { n: 4, size: 28, flat: 0.28, y0: 0.2, y1: 0.6, speed: 2, lit: '255,214,200', base: '140,118,165', a: 0.7 },
     quarry: { n: 3, size: 18, flat: 0.6, y0: 0.1, y1: 0.45, speed: 3, lit: '255,255,255', base: '190,208,230', a: 0.9 },
+    storm: { n: 11, size: 62, flat: 0.5, y0: 0.02, y1: 0.7, speed: 7, lit: '112,120,140', base: '40,44,58', a: 0.92 },
     beach: { n: 5, size: 30, flat: 0.3, y0: 0.18, y1: 0.66, speed: 3, lit: '255,196,170', base: '160,80,140', a: 0.8 }
   };
   function paintCloud(x, y, r, C, seed) {
@@ -1268,6 +1360,67 @@ body {
       for (let x = px0; x < W; x += 6) {                                     // string lights on the pier
         ctx.fillStyle = cols[(x / 6 + Math.floor(clock * 3)) % 4 | 0]; ctx.fillRect(x, deckY - 2 + Math.sin(x * 0.2) * 1, 1.6, 1.6);
       }
+    } else if (L.far === 'cypress') {
+      // cypress trees with hanging moss, and a fishing shack on stilts
+      bumps('#18302a', horizon - 6, 1.5, 7);
+      for (let i = 0; i < 8; i++) {
+        const x = W * (i + 0.2 + hash(i + 3000) * 0.6) / 8, h = 46 + hash(i + 3010) * 44, tw = 3.5 + hash(i + 3020) * 3, cw = 18 + hash(i + 3030) * 12;
+        ctx.fillStyle = L.farC;
+        ctx.beginPath(); ctx.moveTo(x - tw * 2.4, horizon + 1); ctx.quadraticCurveTo(x - tw * 0.5, horizon - h * 0.22, x - tw * 0.45, horizon - h);
+        ctx.lineTo(x + tw * 0.45, horizon - h); ctx.quadraticCurveTo(x + tw * 0.5, horizon - h * 0.22, x + tw * 2.4, horizon + 1); ctx.fill();
+        ctx.lineWidth = tw * 0.5; ctx.strokeStyle = L.farC; ctx.beginPath();       // crooked branches
+        ctx.moveTo(x, horizon - h * 0.55); ctx.lineTo(x - cw * 0.7, horizon - h * 0.8); ctx.moveTo(x, horizon - h * 0.7); ctx.lineTo(x + cw * 0.75, horizon - h * 0.92); ctx.stroke();
+        ctx.beginPath();                                                               // clumpy layered crown
+        for (let k = 0; k < 9; k++) {
+          const ang = k / 9 * Math.PI, rr = cw * (0.55 + hash(i * 11 + k + 3050) * 0.45);
+          const bx = x + Math.cos(ang) * rr * 1.1 * (k % 2 ? 1 : -1), by = horizon - h - Math.sin(ang) * 6 + (k % 3) * 4;
+          const br = 5 + hash(i * 13 + k + 3060) * 6;
+          ctx.moveTo(bx + br * 1.5, by); ctx.ellipse(bx, by, br * 1.5, br * 0.75, 0, 0, 7);
+        }
+        ctx.moveTo(x + cw, horizon - h); ctx.ellipse(x, horizon - h, cw, 7, 0, 0, 7);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(110,140,120,0.5)'; ctx.lineWidth = 1.1; ctx.beginPath();
+        for (let k = 0; k < 7; k++) { const mx = x - cw + k * cw / 3.2 + hash(i * 7 + k) * 3, my = horizon - h + 3, sw = Math.sin(clock * 0.8 + k + i); ctx.moveTo(mx, my); ctx.quadraticCurveTo(mx + sw * 1.5, my + 7, mx + sw * 2.4, my + 9 + hash(i * 5 + k + 1) * 13); }
+        ctx.stroke();
+      }
+      bumps(L.farC, horizon, 0.45, 2);
+      const sx = W * 0.16;
+      ctx.fillStyle = '#121d1b'; ctx.fillRect(sx, horizon - 16, 22, 11);
+      ctx.beginPath(); ctx.moveTo(sx - 3, horizon - 16); ctx.lineTo(sx + 11, horizon - 23); ctx.lineTo(sx + 25, horizon - 16); ctx.fill();
+      for (const px of [sx + 1, sx + 10, sx + 19]) ctx.fillRect(px, horizon - 6, 2, 6);
+      ctx.fillStyle = '#ffcf7a'; ctx.fillRect(sx + 5, horizon - 13, 4, 4);
+      const mg = ctx.createLinearGradient(0, horizon - 26, 0, horizon + 4);
+      mg.addColorStop(0, 'rgba(170,210,190,0)'); mg.addColorStop(1, 'rgba(170,210,190,0.4)');
+      ctx.fillStyle = mg; ctx.fillRect(0, horizon - 26, W, 30);
+    } else if (L.far === 'dam') {
+      // dark hills, a concrete dam with spillway gates, and power towers
+      for (const [col, hgt, fq, ph] of [['#3a4256', 52, 2.6, 0.7], ['#2b3242', 30, 4.3, 1.9]]) {
+        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, horizon);
+        for (let x = 0; x <= W + 10; x += 10) ctx.lineTo(x, horizon - hgt * (0.5 + 0.5 * Math.abs(Math.sin(x / W * fq + ph))));
+        ctx.lineTo(W, horizon); ctx.fill();
+      }
+      const d0 = W * 0.2, d1 = W * 0.8, top = horizon - 28;
+      const dg = ctx.createLinearGradient(0, top, 0, horizon); dg.addColorStop(0, '#7a8090'); dg.addColorStop(1, '#4e5462');
+      ctx.fillStyle = dg; ctx.beginPath(); ctx.moveTo(d0 - 12, horizon); ctx.lineTo(d0, top); ctx.lineTo(d1, top); ctx.lineTo(d1 + 12, horizon); ctx.fill();
+      ctx.fillStyle = '#9096a4'; ctx.fillRect(d0 - 2, top - 3, d1 - d0 + 4, 3);
+      const gates = 5, gw = (d1 - d0) / gates;
+      for (let gI = 0; gI < gates; gI++) {
+        const gx = d0 + gw * gI + gw * 0.22, ww = gw * 0.56;
+        ctx.fillStyle = '#3a3f4c'; ctx.fillRect(gx, top + 6, ww, 9);
+        ctx.fillStyle = 'rgba(230,236,245,0.75)';
+        for (let k = 0; k < 4; k++) { const fy = top + 15 + ((clock * 30 + k * 5 + gI * 3) % 13); ctx.fillRect(gx + 1 + k * ww / 4, top + 15, ww / 4 - 1.5, fy - top - 15 + 1); }
+        ctx.fillStyle = '#5c6270'; ctx.fillRect(d0 + gw * gI - 1.5, top, 3, horizon - top);
+      }
+      ctx.fillStyle = 'rgba(220,228,240,0.35)'; ctx.fillRect(d0 - 6, horizon - 4, d1 - d0 + 12, 4);
+      ctx.fillStyle = '#ffd27a'; for (let x = d0 + 6; x < d1; x += (d1 - d0) / 6) { ctx.fillRect(x, top - 9, 1.2, 6); ctx.fillRect(x - 1, top - 10, 3, 2); }
+      ctx.strokeStyle = '#1e2330'; ctx.lineWidth = 1.1;
+      for (const [tx, th] of [[W * 0.07, 46], [W * 0.93, 40]]) {
+        const b = horizon - 8;
+        ctx.beginPath(); ctx.moveTo(tx - 6, b); ctx.lineTo(tx, b - th); ctx.lineTo(tx + 6, b);
+        for (let k = 1; k < 5; k++) { const yy = b - th * k / 5, hw = 6 * (1 - k / 5); ctx.moveTo(tx - hw, yy); ctx.lineTo(tx + hw, yy); ctx.lineTo(tx - hw * 0.8, yy + th / 5); }
+        ctx.moveTo(tx - 9, b - th * 0.8); ctx.lineTo(tx + 9, b - th * 0.8); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(W * 0.07 - 9, horizon - 8 - 46 * 0.8); ctx.quadraticCurveTo(W * 0.5, horizon - 8, W * 0.93 - 9, horizon - 8 - 40 * 0.8); ctx.stroke();
     } else if (L.far === 'craters') {
       // gray moon hills with craters
       for (const [col, hgt, fq, ph] of [['#3a3c4c', 40, 2.3, 1.1], ['#55576a', 22, 4.1, 0.3]]) {
@@ -1439,8 +1592,8 @@ body {
       ctx.strokeStyle = 'rgba(10,14,35,0.12)';
       ctx.beginPath(); ctx.moveTo(p.x - w * 0.8, p.y + h * 0.8); ctx.quadraticCurveTo(p.x, p.y + h * 2.2, p.x + w * 0.8, p.y + h * 0.8); ctx.stroke();
     }
-    if (['river', 'creek', 'pond'].includes(levelId)) {      // leaves floating on the water
-      const cols = levelId === 'creek' ? ['#c9862f', '#a8552a', '#d9b048'] : ['#6f8f3a', '#b8742e', '#8a6a2a'];
+    if (['river', 'creek', 'pond', 'swamp'].includes(levelId)) {      // leaves floating on the water
+      const cols = levelId === 'creek' ? ['#c9862f', '#a8552a', '#d9b048'] : levelId === 'swamp' ? ['#5f8a3a', '#7aa04a', '#4a7030'] : ['#6f8f3a', '#b8742e', '#8a6a2a'];
       for (let i = 0; i < 9; i++) {
         const z = 4 + hash(i + 300) * 26;
         let x = (hash(i + 330) * 2 - 1) * (hw - 0.5);
@@ -1484,8 +1637,8 @@ body {
         ctx.beginPath(); ctx.moveTo(x - sz, y - fl); ctx.quadraticCurveTo(x - sz * 0.4, y - 2, x, y); ctx.quadraticCurveTo(x + sz * 0.4, y - 2, x + sz, y - fl); ctx.stroke();
       }
     }
-    if (levelId === 'pond') {        // fireflies over the water at dusk
-      for (let i = 0; i < 16; i++) {
+    if (levelId === 'pond' || levelId === 'swamp') {        // fireflies over the water
+      for (let i = 0; i < (levelId === 'swamp' ? 30 : 16); i++) {
         const z = 3 + hash(i + 600) * 22, x = (hash(i + 610) * 2 - 1) * 7 + Math.sin(clock * 0.4 + i * 2) * 0.6;
         const y = 0.4 + hash(i + 620) * 1.4 + Math.sin(clock * 0.9 + i) * 0.2;
         const glow = Math.max(0, Math.sin(clock * (1.2 + hash(i + 630)) + i * 3)) ** 3;
@@ -1606,6 +1759,35 @@ body {
       }
       ctx.fillStyle = 'rgba(40,40,50,0.4)';                            // boot prints
       for (let i = 0; i < 5; i++) { const x = W * 0.62 + i * 14, y = H - 10 - i * 3 + (i % 2) * 4; ctx.beginPath(); ctx.ellipse(x, y, 3, 5, 0.3, 0, 7); ctx.fill(); }
+    } else if (levelId === 'swamp') {
+      fillGround('#28321f', '#0f140b');
+      stones(6, ['#3e3a2e', '#4a4536'], 2.2, 90);
+      for (let i = 0; i < 5; i++) {               // cypress knees poking out of the mud
+        const x = W * (0.04 + i * 0.235 + hash(i + 3100) * 0.06), b = edge(x) + 3, hh = (7 + hash(i + 3110) * 7) * u * 0.5, ww = 3 * u * 0.5;
+        ctx.fillStyle = i % 2 ? '#5a4a36' : '#4a3c2c';
+        ctx.beginPath(); ctx.moveTo(x - ww * 1.4, b); ctx.quadraticCurveTo(x - ww * 0.5, b - hh, x, b - hh * 1.1); ctx.quadraticCurveTo(x + ww * 0.5, b - hh, x + ww * 1.4, b); ctx.fill();
+        ctx.fillStyle = 'rgba(255,240,200,0.12)'; ctx.beginPath(); ctx.ellipse(x - ww * 0.3, b - hh * 0.8, ww * 0.25, hh * 0.25, 0, 0, 7); ctx.fill();
+      }
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 28; i++) {              // cattails at both edges
+        const x = (i < 14 ? i * W * 0.014 : W - (i - 14) * W * 0.014) + hash(i + 3200) * 4, b = edge(x) + 3, hh = (16 + hash(i + 3210) * 12) * u * 0.5, lean = Math.sin(clock * 1.2 + i) * 1.5 + (hash(i + 3220) - 0.5) * 6;
+        ctx.strokeStyle = i % 3 ? '#486834' : '#5c7c40'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(x, b); ctx.quadraticCurveTo(x + lean * 0.3, b - hh * 0.5, x + lean, b - hh); ctx.stroke();
+        if (i % 2 === 0) { ctx.fillStyle = '#5a3a22'; ctx.beginPath(); ctx.ellipse(x + lean, b - hh - 2 * u, 1.7, 3.5 * u * 0.5, lean * 0.05, 0, 7); ctx.fill(); }
+      }
+    } else if (levelId === 'storm') {
+      // the wet concrete boat ramp
+      fillGround('#5c6068', '#2a2d33');
+      ctx.strokeStyle = 'rgba(20,22,28,0.35)'; ctx.lineWidth = 1;
+      for (let i = 1; i < 5; i++) { const y = y0 + (H - y0) * i / 5; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y + 2); ctx.stroke(); }
+      for (let i = 0; i < 4; i++) {               // puddles that catch the sky
+        const x = W * (0.12 + i * 0.26 + hash(i + 3400) * 0.06), y = y0 + (H - y0) * (0.35 + hash(i + 3410) * 0.45), rx = (14 + hash(i + 3420) * 16) * u * 0.5;
+        ctx.fillStyle = bolt && bolt.t < 0.3 ? 'rgba(220,228,250,0.55)' : 'rgba(110,122,148,0.45)';
+        ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.28, 0, 0, 7); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(230,200,90,0.55)'; ctx.lineWidth = 3; ctx.setLineDash([14, 10]);   // faded paint stripe down the ramp
+      ctx.beginPath(); ctx.moveTo(W * 0.5, y0 + 3); ctx.lineTo(W * 0.5, H); ctx.stroke(); ctx.setLineDash([]);
+      stones(4, ['#6d6f72', '#55585c'], 1.5, 120);
     } else if (levelId === 'lake') {
       // the end of a wooden dock
       const top = H - 22 * u;
@@ -1805,6 +1987,12 @@ body {
       { t: 'buoy', x: -0.6, z: 20 }, { t: 'buoy', x: 2.6, z: 38 }],
     quarry: [{ t: 'tube', x: -1.2, z: 11, c: '#ff5d8f' }, { t: 'tube', x: 1.5, z: 19, c: '#ffd23f' }, { t: 'tube', x: -0.4, z: 29, c: '#2ec4b6' },
       { t: 'swing', x: -3, cx: -2.5, amp: 3, z: 22, w: 0.4, d: 0.4, h: 2.6 }, { t: 'raft', x: 2.2, z: 34, w: 1.3, d: 1, h: 0.4 }],
+    swamp: [{ t: 'gator', x: -6, z: 21, vx: 0.95, range: 9, w: 1.7, d: 0.55, h: 0.4 },
+      { t: 'pad', x: -1.9, z: 10, r: 0.7 }, { t: 'pad', x: 1.4, z: 15, r: 0.75, flower: true }, { t: 'frog', x: 1.4, z: 15 },
+      { t: 'pad', x: -0.5, z: 27, r: 0.8 }, { t: 'pad', x: 2.4, z: 32, r: 0.8, flower: true }, { t: 'frog', x: 2.4, z: 32 }, { t: 'pad', x: -2.6, z: 38, r: 0.8 },
+      { t: 'log', x: 3.2, z: 24 }, { t: 'reeds', x: -3.1, z: 17, w: 0.7, d: 0.5, h: 1.2 }],
+    storm: [{ t: 'canoe', x: -9, z: 29, vx: 1.6, range: 11, w: 2.0, d: 0.45, h: 0.7 },
+      { t: 'buoy', x: 0.9, z: 12 }, { t: 'buoy', x: -1.8, z: 19 }, { t: 'buoy', x: 1.6, z: 36 }, { t: 'log', x: -3.5, z: 25 }, { t: 'log', x: 4.2, z: 40 }],
     beach: [{ t: 'surfer', x: -8, z: 21, vx: 1.7, range: 10, w: 0.8, d: 0.5, h: 1.6 }, { t: 'gull', x: 1.3, z: 13 }, { t: 'gull', x: -2.1, z: 31 },
       { t: 'ball', x: -1.1, z: 16, c: '#ff5d8f' }, { t: 'ball', x: 1.7, z: 27, c: '#2d6fb3' }],
     moon: [{ t: 'ufo', x: 0, cx: 0, amp: 4, z: 26, w: 1.3, d: 1.0, h: 1.4 }, { t: 'crystal', x: -1.6, z: 12 }, { t: 'crystal', x: 1.9, z: 19 }, { t: 'crystal', x: -0.5, z: 35 }]
@@ -2055,6 +2243,7 @@ body {
     if (o.t === 'ducks') { quack(); o.vx *= 2.5; }
     else if (o.t === 'ufo') { zap(); shake = 0.3; }
     else if (o.t === 'bike') { clack(); shake = 0.3; }
+    else if (o.t === 'gator') { thunk(); shake = 0.4; o.vx *= 1.8; }
     else if (o.t === 'reeds') { plip(0, true); }
     else { thunk(); shake = 0.35; }
     if (o.t !== 'reeds') addRipple(x, z, false);
@@ -2143,6 +2332,25 @@ body {
         ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.quadraticCurveTo(b.x, (b.y + t.y) / 2, t.x, t.y); ctx.stroke();
         if (i % 2 === 0) { ctx.fillStyle = '#6b4226'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 0.1 * b.s, Math.max(1, 0.05 * b.s), Math.max(2, 0.14 * b.s), 0, 0, 7); ctx.fill(); }
       }
+    } else if (o.t === 'gator') {
+      // a gator cruising along with just its back, snout and eyes above water
+      const d = Math.sign(o.vx) || 1, snout = proj(o.x + d * 1.2, 0, o.z), tail = proj(o.x - d * 1.9, 0, o.z);
+      ctx.strokeStyle = `rgba(${L.glint},0.3)`; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(snout.x, snout.y); ctx.lineTo(tail.x - d * 1.2 * k, tail.y - 0.35 * k); ctx.moveTo(snout.x, snout.y); ctx.lineTo(tail.x - d * 1.2 * k, tail.y + 0.35 * k); ctx.stroke();
+      ctx.fillStyle = 'rgba(8,16,14,0.45)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 0.04 * k, 1.7 * k, 0.12 * k, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = o.hit ? '#4d5c34' : '#33402a';
+      ctx.beginPath(); ctx.ellipse(p.x - d * 0.2 * k, p.y, 1.1 * k, 0.11 * k, 0, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(p.x - d * 1.2 * k, p.y); ctx.quadraticCurveTo(p.x - d * 1.6 * k, p.y - 0.05 * k, tail.x, tail.y); ctx.lineTo(p.x - d * 1.2 * k, p.y + 0.02 * k); ctx.fill();
+      ctx.fillStyle = '#263020';
+      for (let i = 0; i < 7; i++) { const bx = p.x - d * (1.1 - i * 0.3) * k; ctx.beginPath(); ctx.moveTo(bx - 0.08 * k, p.y - 0.06 * k); ctx.lineTo(bx, p.y - 0.17 * k); ctx.lineTo(bx + 0.08 * k, p.y - 0.06 * k); ctx.fill(); }
+      ctx.fillStyle = o.hit ? '#4d5c34' : '#33402a';
+      ctx.beginPath(); ctx.ellipse(snout.x - d * 0.25 * k, snout.y, 0.5 * k, 0.07 * k, 0, Math.PI, 0); ctx.fill();
+      for (const ex of [0.55, 0.75]) {
+        const ep = proj(o.x + d * ex, 0, o.z);
+        ctx.fillStyle = '#33402a'; ctx.beginPath(); ctx.arc(ep.x, ep.y - 0.06 * k, Math.max(1, 0.09 * k), Math.PI, 0); ctx.fill();
+        ctx.fillStyle = 'rgba(230,255,120,0.9)'; ctx.beginPath(); ctx.arc(ep.x, ep.y - 0.09 * k, Math.max(0.7, 0.035 * k), 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(220,240,200,0.5)'; ctx.beginPath(); ctx.arc(snout.x + d * 0.1 * k, snout.y - 0.05 * k, Math.max(0.6, 0.03 * k), 0, 7); ctx.fill();
     } else if (o.t === 'canoe') {
       const a = proj(o.x - 2, 0.05, o.z), b = proj(o.x + 2, 0.05, o.z), a2 = proj(o.x - 2.1, 0.45, o.z), b2 = proj(o.x + 2.1, 0.45, o.z);
       ctx.fillStyle = '#b8362f';
@@ -2270,7 +2478,7 @@ body {
     }
     ctx.restore();
   }
-  const BLOCKER_TYPES = ['bobber', 'fisher', 'ducks', 'reeds', 'canoe', 'wader', 'branch', 'bike', 'motorboat', 'swing', 'raft', 'surfer', 'ufo'];
+  const BLOCKER_TYPES = ['gator', 'bobber', 'fisher', 'ducks', 'reeds', 'canoe', 'wader', 'branch', 'bike', 'motorboat', 'swing', 'raft', 'surfer', 'ufo'];
 
   // ---------- the kids ----------
   const KIDS = [
@@ -2995,6 +3203,7 @@ body {
     if (shake > 0 && !reduceMotion) { const m = shake * 18; ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m); }
     drawSky(); drawShore(); drawHaze(); drawWater(); drawWavelets(); drawBanks(); drawSides(); drawRain(false); drawRipples(); drawObstacles(); drawRock(); drawPops(); drawLedge(); drawKid(); drawRain(true); drawAir(); drawSpeech(); drawWind(); drawHand(); drawSwipe();
     ctx.restore();
+    if (bolt && bolt.t < 0.3) { ctx.fillStyle = `rgba(225,232,255,${(reduceMotion ? 0.08 : 0.22) * (1 - bolt.t / 0.3)})`; ctx.fillRect(0, 0, W, H); }
     drawConfetti();
   }
   let reduceMotion = false;
