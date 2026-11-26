@@ -123,6 +123,20 @@ body {
   z-index: 5;
 }
 .sheet[hidden], .title[hidden], .next[hidden] { display: none; }
+.bd-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); font-size: 14px; }
+.bd-row.me { background: rgba(143, 227, 168, 0.16); }
+.bd-rank { font: 800 16px var(--display); color: var(--warn); text-align: center; }
+.bd-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-who small { color: var(--ink-dim); margin-left: 6px; }
+.bd-score { font: 800 18px var(--display); }
+.bd-list { display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+.bd-msg { color: var(--ink-dim); font-size: 14px; padding: 10px 2px; }
+.bd-chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.bd-chips .pill { background: rgba(255, 255, 255, 0.08); font-size: 13px; padding: 7px 12px; }
+.bd-chips .pill.on { background: var(--sweet); color: #10241a; }
+.bd-name { display: flex; gap: 8px; }
+.bd-name input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 0; background: rgba(255, 255, 255, 0.1); color: var(--ink); font: 600 16px var(--body); }
+.bd-name button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--sweet); color: #10241a; font: 800 15px var(--display); cursor: pointer; }
 .goal { font-size: 12px; font-weight: 600; color: var(--sweet); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
 .next {
   pointer-events: auto;
@@ -317,6 +331,7 @@ body {
     <button id="play" type="button" class="play">Play</button>
     <button id="titleEndless" type="button" class="pill endless-pill">Endless mode</button>
     <button id="titlePick" type="button" class="pill">Kids &amp; places</button>
+    <button id="titleBoard" type="button" class="pill">🏆 High scores</button>
     <p class="who" id="titleWho">Danny at the pond</p>
   </div>
 </div>
@@ -330,6 +345,17 @@ body {
     <h2>Where to?</h2>
     <div class="cards" id="placeCards"></div>
     <button id="done" type="button" class="done">Let's go skip some rocks</button>
+  </div>
+</div>
+
+<div class="sheet" id="board" hidden>
+  <div class="sheet-in" role="dialog" aria-label="High scores">
+    <h2>🏆 High scores</h2>
+    <div class="bd-name"><input id="bdName" maxlength="12" placeholder="Your name for the board" autocomplete="nickname"><button id="bdSave" type="button">Save</button></div>
+    <div class="bd-chips" id="bdModes"></div>
+    <div class="bd-chips" id="bdPlaces"></div>
+    <div class="bd-list" id="bdList"></div>
+    <button id="bdDone" type="button" class="done">Back to skipping</button>
   </div>
 </div>
 
@@ -836,7 +862,7 @@ body {
     if (endless) return finishEndless(why);
     const starsBefore = starsFor(levelId, best.skips), totalBefore = totalStars();
     let newBest = false;
-    if (skips > best.skips || (skips === best.skips && ft > best.ft)) { best = { skips, ft }; store.set('rs-best-' + levelId, best); newBest = skips > 0; }
+    if (skips > best.skips || (skips === best.skips && ft > best.ft)) { const better = skips > best.skips; best = { skips, ft }; store.set('rs-best-' + levelId, best); newBest = skips > 0; if (better) submitScore(levelId, 'levels', skips); }
     let passedNow = false;
     if (skips >= L.goal && !passed.includes(levelId)) { passed.push(levelId); store.set('rs-passed-v2', passed); passedNow = true; burst(); cheer(); }
     else if (newBest) { burst(); cheer(); }
@@ -895,13 +921,64 @@ body {
       main = `Run over! Score ${score}`;
       const why2 = OBST_MSG[why] ? ` You hit ${OBST_MSG[why][1]}.` : '';
       tip = `You needed ${run.target} and got ${skips}.${why2} You made ${run.throws} ${run.throws === 1 ? 'throw' : 'throws'} in a row.`;
-      if (score > prev) { store.set(key, score); tip = `New endless best! ` + tip; burst(); cheer(); }
+      if (score > prev) { store.set(key, score); tip = `New endless best! ` + tip; burst(); cheer(); submitScore(levelId, 'endless', score); }
       tip += ' Throw again to start a new run.';
       run = newRun();
     }
     renderBest();
     kidSays(main.startsWith('Run over') ? (OBST_MSG[why] ? 'oops' : 'miss') : skips >= 15 ? 'great' : 'ok');
     showCall(main, tip);
+  }
+  // ---------- shared high score board (Supabase) ----------
+  const SB_URL = 'https://chbornukyuafmxkdquko.supabase.co', SB_KEY = 'sb_publishable_2j0Si5x5-WBxzZ4F_Rjnfw_SBMkEsib';
+  let bdPlace = null, bdMode = null;
+  const cleanName = n => String(n || '').replace(/[^A-Za-z0-9 ._'-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12);
+  const sbHeaders = () => ({ apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' });
+  function submitScore(place, mode, score) {
+    const name = store.get('rs-name', '');
+    if (!SB_KEY || !name || !(score > 0)) return;
+    fetch(SB_URL + '/rest/v1/scores', { method: 'POST', headers: { ...sbHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ name, kid: K.name, place, mode, score: Math.min(500, score | 0) }) }).catch(() => {});
+  }
+  function submitAllBests() {
+    for (const id of [...LEVEL_IDS, ...SECRET_IDS]) {
+      const b = bestOf(id); if (b > 0) submitScore(id, 'levels', b);
+      const e = store.get('rs-endless-' + id, 0); if (e > 0) submitScore(id, 'endless', e);
+    }
+  }
+  function chip(parent, label, on, fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'pill' + (on ? ' on' : ''); b.textContent = label; b.addEventListener('click', fn); parent.appendChild(b); }
+  function openBoard() {
+    bdPlace = bdPlace || levelId; bdMode = bdMode || (endless ? 'endless' : 'levels');
+    $('bdName').value = store.get('rs-name', ''); $('bdSave').textContent = store.get('rs-name', '') ? 'Saved' : 'Save';
+    $('board').hidden = false; drag = null; loadBoard();
+  }
+  function closeBoard() { $('board').hidden = true; if (!started) renderTitle(); }
+  function loadBoard() {
+    const modes = $('bdModes'), places = $('bdPlaces'), list = $('bdList');
+    modes.textContent = ''; places.textContent = '';
+    chip(modes, 'Most skips', bdMode === 'levels', () => { bdMode = 'levels'; loadBoard(); });
+    chip(modes, 'Endless score', bdMode === 'endless', () => { bdMode = 'endless'; loadBoard(); });
+    for (const id of [...LEVEL_IDS, ...SECRET_IDS]) if (isOpen(id)) chip(places, LEVELS[id].short, bdPlace === id, () => { bdPlace = id; loadBoard(); });
+    const msg = t => { list.textContent = ''; const d = document.createElement('div'); d.className = 'bd-msg'; d.textContent = t; list.appendChild(d); };
+    if (!SB_KEY) return msg('The board is almost ready. Check back soon!');
+    msg('Loading…');
+    const q = `${SB_URL}/rest/v1/scores?select=name,kid,score&place=eq.${bdPlace}&mode=eq.${bdMode}&order=score.desc,created_at.asc&limit=60`;
+    const want = bdPlace + bdMode;
+    fetch(q, { headers: sbHeaders() }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(rows => {
+      if (want !== bdPlace + bdMode) return;
+      const seen = new Set(), top = [];
+      for (const r of rows) { const k = String(r.name).toLowerCase(); if (seen.has(k)) continue; seen.add(k); top.push(r); if (top.length === 10) break; }
+      list.textContent = '';
+      if (!top.length) return msg(`No scores at the ${LEVELS[bdPlace].short.toLowerCase()} yet. Be the first!`);
+      const me = String(store.get('rs-name', '')).toLowerCase();
+      top.forEach((r, i) => {
+        const row = document.createElement('div'); row.className = 'bd-row' + (String(r.name).toLowerCase() === me ? ' me' : '');
+        const rk = document.createElement('span'); rk.className = 'bd-rank'; rk.textContent = i < 3 ? ['🥇', '🥈', '🥉'][i] : String(i + 1);
+        const who = document.createElement('span'); who.className = 'bd-who'; who.textContent = r.name; const sm = document.createElement('small'); sm.textContent = 'as ' + r.kid; who.appendChild(sm);
+        const sc = document.createElement('span'); sc.className = 'bd-score'; sc.textContent = String(r.score);
+        row.append(rk, who, sc); list.appendChild(row);
+      });
+      if (!me) { const d = document.createElement('div'); d.className = 'bd-msg'; d.textContent = 'Type your name above to get your best scores on the board.'; list.appendChild(d); }
+    }).catch(() => msg("Couldn't reach the board right now. Check your internet and try again."));
   }
   // ---------- what the kid says after a throw ----------
   const LINES = {
@@ -3509,6 +3586,13 @@ body {
   el.next.addEventListener('pointerdown', e => e.stopPropagation());
   el.next.addEventListener('click', e => { e.stopPropagation(); const to = el.next.dataset.to; setLevel(to); showCall(L.name, introTip()); });
   el.sheet.addEventListener('click', e => { if (e.target === el.sheet) closeSheet(); });
+  el.sheet.querySelector('h2').insertAdjacentHTML('beforebegin', '<button id="sheetBoard" type="button" class="pill" style="align-self:flex-start;background:rgba(255,255,255,0.1)">🏆 High scores</button>');
+  $('sheetBoard').addEventListener('click', () => { el.sheet.hidden = true; openBoard(); });
+  $('titleBoard').addEventListener('click', openBoard);
+  $('bdDone').addEventListener('click', closeBoard);
+  $('board').addEventListener('click', e => { if (e.target === $('board')) closeBoard(); });
+  $('bdSave').addEventListener('click', () => { const n = cleanName($('bdName').value); if (!n) return; store.set('rs-name', n); $('bdName').value = n; $('bdSave').textContent = 'Saved'; submitAllBests(); setTimeout(loadBoard, 900); });
+  $('bdName').addEventListener('input', () => { $('bdSave').textContent = 'Save'; });
   renderBest();
 
   // ---------- loop ----------
