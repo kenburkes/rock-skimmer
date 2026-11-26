@@ -416,7 +416,7 @@ body {
   // iPhone: play sound even with the ringer switch on silent, and unlock speech on a tap
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
   // load the current kid's voice clips on the first tap (sound can only start after a tap on iPhone)
-  for (const ev of ['pointerdown', 'touchend', 'click']) window.addEventListener(ev, () => { try { if (typeof K !== 'undefined') loadVoice(K.id); } catch (e) {} }, { capture: true, passive: true });
+  for (const ev of ['pointerdown', 'touchend', 'click']) window.addEventListener(ev, () => { try { if (typeof K !== 'undefined') loadVoice(K.id); if (!started && soundMode === 'all') startMusic(); } catch (e) {} }, { capture: true, passive: true });
   function audio() {
     if (soundMode === 'off') return null;
     if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
@@ -459,7 +459,7 @@ body {
     lp.type = 'lowpass'; lp.frequency.value = 1400; g.gain.value = 0.08;
     s.buffer = buf; s.connect(lp).connect(g).connect(a.destination); s.start(t);
   }
-  // ---------- 80s soundtrack and place sounds (all synthesized, nothing downloaded) ----------
+  // ---------- 80s soundtrack and place sounds ----------
   let music = null, amb = null, musicTimer = null;
   const NOTE = n => 440 * Math.pow(2, (n - 69) / 12);
   // A minor, F, C, G: one bar each
@@ -614,7 +614,35 @@ body {
     }
   };
   const MUSIC = SONGS;
+  // real 80s-style tracks from Pixabay (music/<level>.mp3); the synth songs above are the backup if a track can't load
+  const TRACK_VOL = 0.55;
+  let trackBuf = { id: null, p: null }, musicTok = 0;
+  function loadTrack(a, id) {
+    if (trackBuf.id !== id) {
+      const p = fetch(`music/${id}.mp3`).then(r => { if (!r.ok) throw new Error('no track'); return r.arrayBuffer(); })
+        .then(b => new Promise((res, rej) => a.decodeAudioData(b, res, rej)));
+      trackBuf = { id, p };
+      p.catch(() => { if (trackBuf.p === p) trackBuf = { id: null, p: null }; });
+    }
+    return trackBuf.p;
+  }
   function startMusic() {
+    const a = audio(); if (!a || music || soundMode !== 'all') return;
+    const id = started ? levelId : 'title', tok = ++musicTok;
+    const out = a.createGain(); out.gain.value = 0.0001; out.connect(a.destination);
+    music = { a, out, src: null, tok };
+    loadTrack(a, id).then(buf => {
+      if (!music || music.tok !== tok) return;
+      const s = a.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(out); s.start();
+      music.src = s;
+      out.gain.setValueAtTime(0.0001, a.currentTime); out.gain.exponentialRampToValueAtTime(TRACK_VOL, a.currentTime + 1.2);
+    }).catch(() => {
+      if (!music || music.tok !== tok) return;
+      out.disconnect(); music = null;
+      if (started) startSynth();
+    });
+  }
+  function startSynth() {
     const a = audio(); if (!a || music || soundMode !== 'all') return;
     const song = SONGS[levelId] || SONGS.pond;
     const out = a.createGain(); out.gain.value = 0.0001;
@@ -678,7 +706,7 @@ body {
   function stopMusic() {
     if (!music) return;
     const m = music; music = null; clearInterval(musicTimer);
-    try { m.out.gain.setTargetAtTime(0.0001, m.a.currentTime, 0.3); setTimeout(() => m.out.disconnect(), 1500); } catch (e) {}
+    try { m.out.gain.setTargetAtTime(0.0001, m.a.currentTime, 0.3); setTimeout(() => { m.out.disconnect(); if (m.src) try { m.src.stop(); } catch (e) {} }, 1500); } catch (e) {}
   }
   // background sounds for each place
   function setAmbience() {
@@ -759,6 +787,7 @@ body {
   function setSound(mode) {
     soundMode = mode; store.set('rs-sound', mode);
     el.sound.textContent = SOUND_LABEL[mode];
+    if (mode !== 'all') stopMusic();
     if (!started) return;
     if (mode === 'all') startMusic(); else stopMusic();
     setAmbience();
@@ -3572,7 +3601,7 @@ body {
   function startGame() {
     started = true; el.title.hidden = true; el.hint.style.visibility = 'visible';
     audio();
-    if (soundMode === 'all') startMusic();
+    if (soundMode === 'all') { if (music) { stopMusic(); setTimeout(startMusic, 400); } else startMusic(); }
     setAmbience();
     showCall(endless ? `Endless ${L.short.toLowerCase()}` : L.name, introTip());
   }
