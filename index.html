@@ -678,7 +678,7 @@ body {
     let newBest = false;
     if (skips > best.skips || (skips === best.skips && ft > best.ft)) { best = { skips, ft }; store.set('rs-best-' + levelId, best); newBest = skips > 0; }
     let passedNow = false;
-    if (skips >= L.goal && !passed.includes(levelId)) { passed.push(levelId); store.set('rs-passed', passed); passedNow = true; burst(); cheer(); }
+    if (skips >= L.goal && !passed.includes(levelId)) { passed.push(levelId); store.set('rs-passed-v2', passed); passedNow = true; burst(); cheer(); }
     else if (newBest) { burst(); cheer(); }
     renderBest();
     let main, tip = '';
@@ -831,11 +831,11 @@ body {
   const LEVEL_IDS = ['pond', 'river', 'creek', 'street'];
   // goals and difficulty: each level needs more skips and has a smaller green zone that swings faster
   // later levels also punish a release outside the green more (qFloor / qFall)
-  Object.assign(LEVELS.pond, { goal: 8, sweet: [8, 32], period: 2.8, qFloor: 0.35, qFall: 16 });
-  Object.assign(LEVELS.river, { goal: 10, sweet: [10, 30], period: 2.4, qFloor: 0.25, qFall: 12 });
-  Object.assign(LEVELS.creek, { goal: 12, sweet: [12, 28], period: 2.1, qFloor: 0.15, qFall: 9 });
-  Object.assign(LEVELS.street, { goal: 14, sweet: [14, 26], period: 1.8, qFloor: 0.05, qFall: 7 });
-  let passed = store.get('rs-passed', []);
+  Object.assign(LEVELS.pond, { goal: 12, sweet: [12, 28], period: 2.3, qFloor: 0.2, qFall: 10 });
+  Object.assign(LEVELS.river, { goal: 14, sweet: [14, 26], period: 1.9, qFloor: 0.1, qFall: 7 });
+  Object.assign(LEVELS.creek, { goal: 16, sweet: [16, 24], period: 1.6, qFloor: 0.05, qFall: 5 });
+  Object.assign(LEVELS.street, { goal: 18, sweet: [17, 23], period: 1.4, qFloor: 0, qFall: 4 });
+  let passed = store.get('rs-passed-v2', []);
   if (!Array.isArray(passed)) passed = [];
   LEVELS.pond.rim = '255,170,110'; LEVELS.river.rim = '255,250,230'; LEVELS.creek.rim = '215,255,170'; LEVELS.street.rim = '255,205,140';
   let levelId = store.get('rs-level', 'pond');
