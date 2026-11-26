@@ -2418,6 +2418,34 @@ body {
     ctx.restore();
     return { x: kx + lean * u + hx, y: ny + P.crouch * u + hy };
   }
+  // each kid celebrates a great throw their own way
+  const CELEB = { danny: 'pump', keisha: 'jump', marcus: 'roof', jenny: 'dance', kevin: 'pump', priya: 'dance', amina: 'jump' };
+  function celebration(REST) {
+    if (!speech || speech.kind !== 'great' || drag) return null;
+    const a = clock - speech.t; if (a > 2.4) return null;
+    const env = Math.min(1, a / 0.15) * (a > 2.1 ? Math.max(0, (2.4 - a) / 0.3) : 1);
+    let P, hop = 0;
+    const style = CELEB[K.id] || 'pump';
+    if (style === 'pump') {            // fist pumps with little hops
+      const b = Math.sin(a * 12);
+      P = { arm: 150 + b * 22, fore: 0.6 + b * 0.35, lean: -0.6, crouch: 0.6 + 0.6 * Math.abs(b), left: 8 };
+      hop = Math.max(0, Math.sin(a * 6)) * 3;
+    } else if (style === 'jump') {     // jumping with both arms up
+      const ph = (a * 2.4) % 1;
+      hop = Math.sin(ph * Math.PI) * 8;
+      P = { arm: 165, fore: 0.15, lean: 0, crouch: hop < 1.5 ? 1.8 : -0.4, left: 165 };
+    } else if (style === 'roof') {     // raise the roof
+      const b = Math.sin(a * 10);
+      P = { arm: 160 + b * 14, fore: 1.0, lean: 0, crouch: 0.8 + 0.6 * b, left: 160 - b * 14 };
+      hop = Math.max(0, b) * 1.5;
+    } else {                           // a little side-to-side dance
+      const b = Math.sin(a * 7);
+      P = { arm: 115 + b * 45, fore: 0.6, lean: b * 2.6, crouch: 0.8 + 0.7 * Math.abs(b), left: 115 - b * 45 };
+      hop = Math.abs(Math.cos(a * 7)) * 2;
+    }
+    const out = {}; for (const key in REST) out[key] = REST[key] + (P[key] - REST[key]) * env;
+    return { P: out, hop: hop * env };
+  }
   function drawKid() {
     const u = H / 175, kx = W * 0.34;
     // throwing motion, keyframed: wind-up (while swiping), whip to release, follow-through, recover
@@ -2437,10 +2465,13 @@ body {
       snap = true;
     } else if (drag) target = WIND;
     else target = REST;
-    const rate = snap ? 1 : Math.min(1, (drag ? 9 : 5) * (1 / 60));
+    let hop = 0;
+    const cel = target === REST ? celebration(REST) : null;
+    if (cel) { target = cel.P; hop = cel.hop; snap = false; }
+    const rate = snap ? 1 : Math.min(1, (drag ? 9 : cel ? 14 : 5) * (1 / 60));
     for (const key in pose) pose[key] += (target[key] - pose[key]) * rate;
     const bob = state === 'ready' && !drag && throwT > 1 ? Math.sin(clock * 2) * 0.25 : 0;
-    const ny = H - 44 * u + bob * u;
+    const ny = H - 44 * u + bob * u - hop * u;
     const h = drawFigure(K, kx, ny, u, pose, bob);
     if (state === 'ready' || state === 'throwing' || (state === 'done' && throwT > 0.95)) {
       const good = tilt >= SWEET_LO && tilt <= SWEET_HI;
