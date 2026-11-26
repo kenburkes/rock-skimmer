@@ -299,6 +299,7 @@ body {
     <div class="btns">
       <button id="pick" type="button" class="pill">Kids &amp; places</button>
       <button id="sound" type="button" class="pill" aria-label="Change sound">Music + sound</button>
+      <button id="hand" type="button" class="pill" aria-label="Switch throwing hand">Right-handed</button>
     </div>
   </div>
 </div>
@@ -739,6 +740,13 @@ body {
   el.sound.addEventListener('click', e => { e.stopPropagation(); setSound({ all: 'fx', fx: 'off', off: 'all' }[soundMode]); });
   el.sound.addEventListener('pointerdown', e => e.stopPropagation());
   setSound(soundMode);
+  // right-handed players get the tilt meter on the left (under the thumb that isn't swiping), lefties get it on the right
+  let handed = store.get('rs-hand', 'right');
+  const kidX = () => W * (handed === 'left' ? 0.34 : 0.6), meterX = () => W * (handed === 'left' ? 0.77 : 0.23);
+  function setHand(h) { handed = h; store.set('rs-hand', h); $('hand').textContent = h === 'left' ? 'Left-handed' : 'Right-handed'; }
+  $('hand').addEventListener('click', e => { e.stopPropagation(); setHand(handed === 'left' ? 'right' : 'left'); });
+  $('hand').addEventListener('pointerdown', e => e.stopPropagation());
+  setHand(handed);
 
   // ---------- game state ----------
   const G = 9.8;
@@ -936,7 +944,7 @@ body {
     if (!speech) return;
     const age = clock - speech.t;
     if (age > 2.6) { speech = null; return; }
-    const u = H / 175, x = W * 0.34 + 4 * u, y = H - 67 * u;
+    const u = H / 175, x = kidX() + 4 * u, y = H - 67 * u;
     const pop = Math.min(1, age / 0.15), fade = age > 2.2 ? 1 - (age - 2.2) / 0.4 : 1;
     ctx.save(); ctx.globalAlpha = Math.max(0, fade);
     ctx.font = `800 ${Math.round(Math.max(15, 6.4 * u))}px "Bricolage Grotesque", system-ui, sans-serif`;
@@ -3214,7 +3222,7 @@ body {
       REL: { arm: 38, fore: -0.1 }, FOLLOW: { arm: -95, fore: -0.4, lean: -2.9, crouch: 0.2, left: 30 } }
   };
   function drawKid() {
-    const u = H / 175, kx = W * 0.34;
+    const u = H / 175, kx = kidX();
     // throwing motion, keyframed: wind-up (while swiping), whip to release, follow-through, recover
     const breath = Math.sin(clock * 1.7), shift = Math.sin(clock * 0.42) + 0.3 * Math.sin(clock * 1.13);
     const REST = { arm: 22 + Math.sin(clock * 1.3) * 3 + shift * 2, fore: -0.3 + breath * 0.04, lean: shift * 0.7, crouch: 0.2 + breath * 0.22, left: 5 - shift * 2 + Math.sin(clock * 1.1) * 2, turn: 1 };
@@ -3271,7 +3279,7 @@ body {
   function drawHand() {
     if (!started) return;
     if (state !== 'ready' && !(state === 'done' && clock - doneAt > 1.2)) return;
-    const cx = W * 0.77, cy = H * 0.79;
+    const cx = meterX(), cy = H * 0.79;
     const R = Math.min(W * 0.17, 68);
     const inSweet = tilt >= SWEET_LO && tilt <= SWEET_HI;
     const ang = t => Math.PI + (t / 40) * Math.PI;   // 0° at left, 40° at right, over the top
