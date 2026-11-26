@@ -774,6 +774,7 @@ body {
     }
     const starsNow = starsFor(levelId, best.skips);
     if (starsNow > starsBefore && starsNow > 1) tip = `${'★'.repeat(starsNow)} You earned ${starsNow} stars here!` + (starsNow < 3 ? ` Next star at ${STARS[levelId][starsNow]} skips.` : '');
+    kidSays(passedNow || newBest || skips >= L.goal ? 'great' : OBST_MSG[why] || why === 'bank' || why === 'rock' || why === 'cliff' ? 'oops' : skips < Math.max(5, L.goal * 0.5) ? 'miss' : 'ok');
     showCall(main, tip);
   }
   function finishEndless(why) {
@@ -794,7 +795,52 @@ body {
       run = newRun();
     }
     renderBest();
+    kidSays(main.startsWith('Run over') ? (OBST_MSG[why] ? 'oops' : 'miss') : skips >= 15 ? 'great' : 'ok');
     showCall(main, tip);
+  }
+  // ---------- what the kid says after a throw ----------
+  const LINES = {
+    great: ['Awesome!', 'Radical!', 'Totally tubular!', 'Gnarly!', 'Righteous!', 'Excellent!', 'Did you see that?!', 'Wicked!', 'Yes! Nailed it!', 'Most excellent!'],
+    ok: ['Not bad!', 'Pretty cool!', 'Okay, okay!', 'Sweet!', 'Getting there!'],
+    miss: ['Oh man!', 'Gosh darn it!', 'Aw, nuts!', 'Rats!', 'Shoot!', 'Bogus!', 'Aw, man!', 'Dang it!', 'No way!'],
+    oops: ['Whoops!', 'Oh, brother!', 'Gosh darn it!', 'Aw, come on!', 'Sorry!', 'Oh man!']
+  };
+  const VOICE = { danny: 1.5, keisha: 1.8, marcus: 1.35, jenny: 1.9, kevin: 1.55, priya: 1.85, amina: 1.75 };
+  let speech = null, lastLine = '';
+  function kidSays(kind) {
+    const list = LINES[kind].filter(t => t !== lastLine);
+    const text = list[Math.floor(Math.random() * list.length)];
+    lastLine = text; speech = { text, t: clock, kind };
+    if (soundMode === 'off' || !('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.pitch = VOICE[K.id] || 1.6; u.rate = kind === 'great' ? 1.15 : 1.05; u.volume = 0.9; u.lang = 'en-US';
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  // comic speech bubble over the kid's head
+  function drawSpeech() {
+    if (!speech) return;
+    const age = clock - speech.t;
+    if (age > 2.6) { speech = null; return; }
+    const u = H / 175, x = W * 0.34 + 4 * u, y = H - 67 * u;
+    const pop = Math.min(1, age / 0.15), fade = age > 2.2 ? 1 - (age - 2.2) / 0.4 : 1;
+    ctx.save(); ctx.globalAlpha = Math.max(0, fade);
+    ctx.font = `800 ${Math.round(Math.max(15, 6.4 * u))}px "Bricolage Grotesque", system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(speech.text).width, bw = tw + 22, bh = Math.max(15, 6.4 * u) + 16;
+    const bx = Math.min(W - bw / 2 - 10, Math.max(bw / 2 + 10, x + 16 * u + bw * 0.3));
+    ctx.translate(bx, y); ctx.scale(0.6 + 0.4 * pop + (pop < 1 ? 0.1 : 0), 0.6 + 0.4 * pop);
+    ctx.fillStyle = '#fffdf5'; ctx.strokeStyle = 'rgba(22,16,34,0.85)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-bw / 2, -bh / 2, bw, bh, bh / 2) : ctx.rect(-bw / 2, -bh / 2, bw, bh);
+    ctx.fill(); ctx.stroke();
+    const tx = Math.max(-bw / 2 + 14, Math.min(bw / 2 - 14, x + 4 * u - bx));   // tail points down at the kid's head
+    ctx.beginPath(); ctx.moveTo(tx - 7, bh / 2 - 1.5); ctx.lineTo(tx - 3, bh / 2 + 11); ctx.lineTo(tx + 6, bh / 2 - 1.5);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fffdf5'; ctx.fillRect(tx - 6, bh / 2 - 4, 11, 4);
+    ctx.fillStyle = speech.kind === 'great' ? '#d6336c' : speech.kind === 'ok' ? '#2a7a4a' : '#2b2340';
+    ctx.fillText(speech.text, 0, 1);
+    ctx.restore();
   }
   function setMode(m) {
     endless = m === 'endless'; store.set('rs-mode', m); run = newRun();
@@ -2490,7 +2536,7 @@ body {
   function draw() {
     ctx.save();
     if (shake > 0 && !reduceMotion) { const m = shake * 18; ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m); }
-    drawSky(); drawShore(); drawHaze(); drawWater(); drawWavelets(); drawBanks(); drawSides(); drawRain(false); drawRipples(); drawObstacles(); drawRock(); drawPops(); drawLedge(); drawKid(); drawRain(true); drawAir(); drawWind(); drawHand(); drawSwipe();
+    drawSky(); drawShore(); drawHaze(); drawWater(); drawWavelets(); drawBanks(); drawSides(); drawRain(false); drawRipples(); drawObstacles(); drawRock(); drawPops(); drawLedge(); drawKid(); drawRain(true); drawAir(); drawSpeech(); drawWind(); drawHand(); drawSwipe();
     ctx.restore();
     drawConfetti();
   }
