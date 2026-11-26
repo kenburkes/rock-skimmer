@@ -812,7 +812,7 @@ body {
     motorboat: ['Bonk! Hit the motorboat.', 'a motorboat', 'Wait for the boat to zoom past.'],
     loon: ['Hit a loon!', 'a loon', 'The loons dive when a stone lands close by.'],
     buoy: ['Clang! Hit the buoy.', 'a buoy', 'Throw around the buoys.'],
-    swing: ['Whoa! Hit the rope swing.', 'the rope swing', 'Time it so the swing is out of the way.'],
+    junker: ['Clunk! Hit the old car.', 'the sunken car', 'Somebody drove an old car into the quarry years ago. Throw right of it.'],
     raft: ['Thunk! Hit the raft.', 'the swim raft', 'Throw left of the raft.'],
     cliff: ['Clack! Hit the cliff.', 'the cliff wall', 'Swipe straighter to stay between the cliffs.'],
     surfer: ['Hey! Watch it, grom!', 'a surfer', 'Wait for the surfer to ride past.'],
@@ -1325,17 +1325,40 @@ body {
       mg.addColorStop(0, 'rgba(255,225,215,0)'); mg.addColorStop(1, 'rgba(255,225,215,0.55)');
       ctx.fillStyle = mg; ctx.fillRect(0, horizon - 30, W, 34);
     } else if (L.far === 'quarry') {
-      // the far quarry wall with stone layers and trees on top
-      const top = horizon - 64;
-      ctx.fillStyle = '#4f7a3a'; ctx.fillRect(0, top - 10, W, 12);
-      bumps('#3f6b2e', top, 0.5, 4);
-      const wg = ctx.createLinearGradient(0, top, 0, horizon);
-      wg.addColorStop(0, '#cbb896'); wg.addColorStop(1, '#8e7d63');
-      ctx.fillStyle = wg; ctx.fillRect(0, top, W, horizon - top + 1);
-      ctx.strokeStyle = 'rgba(90,75,55,0.45)'; ctx.lineWidth = 1;
-      for (let y = top + 9; y < horizon; y += 11) { ctx.beginPath(); ctx.moveTo(0, y); for (let x = 0; x <= W; x += 30) ctx.lineTo(x, y + Math.sin(x * 0.05 + y) * 2); ctx.stroke(); }
-      ctx.strokeStyle = 'rgba(70,58,42,0.35)';
-      for (let x = 20; x < W; x += 47) { ctx.beginPath(); ctx.moveTo(x, top + 4); ctx.lineTo(x + 6, horizon - 4); ctx.stroke(); }
+      // the far quarry wall: cut granite blocks in benches, trees on top, a trickle of water
+      const base = horizon - 58;
+      bumps('#5d8a48', base - 8, 0.9, 11);
+      bumps('#4a7a3a', base + 2, 0.6, 3);
+      for (let x = -10, i = 0; x < W + 10; i++) {
+        const w = 26 + hash(i + 3600) * 50, top = base + (hash(i + 3610) - 0.5) * 14, sh = hash(i + 3620);
+        const c0 = [200 - sh * 22, 184 - sh * 22, 160 - sh * 20].map(Math.round), c1 = [146 - sh * 18, 132 - sh * 18, 116 - sh * 16].map(Math.round);
+        const g = ctx.createLinearGradient(0, top, 0, horizon); g.addColorStop(0, `rgb(${c0})`); g.addColorStop(1, `rgb(${c1})`);
+        ctx.fillStyle = g; ctx.fillRect(x, top, w + 1, horizon - top + 1);
+        ctx.fillStyle = 'rgba(255,250,235,0.35)'; ctx.fillRect(x, top, w, 1.5);
+        for (const by of [0.36, 0.68]) {                 // benches cut into the wall
+          const yy = top + (horizon - top) * by;
+          ctx.fillStyle = 'rgba(80,70,60,0.28)'; ctx.fillRect(x, yy, w, 2.5);
+          ctx.fillStyle = 'rgba(255,248,230,0.3)'; ctx.fillRect(x, yy - 1, w, 1);
+        }
+        ctx.fillStyle = 'rgba(70,60,52,0.13)';            // drill marks
+        for (let dx = 4; dx < w - 2; dx += 5) ctx.fillRect(x + dx, top + 3, 0.8, (horizon - top) * 0.3);
+        ctx.fillStyle = 'rgba(60,50,45,0.18)'; ctx.fillRect(x + w - 1.5, top, 1.5, horizon - top);
+        if (hash(i + 3630) > 0.55) { const sx = x + w * hash(i + 3640); const sg = ctx.createLinearGradient(0, top, 0, horizon); sg.addColorStop(0, 'rgba(110,80,50,0.35)'); sg.addColorStop(1, 'rgba(110,80,50,0)'); ctx.fillStyle = sg; ctx.fillRect(sx, top, 3 + hash(i) * 4, horizon - top); }
+        if (i === 3) {                                    // a little waterfall trickling down
+          const fx = x + w * 0.5, ft = top + 2;
+          ctx.fillStyle = 'rgba(235,248,255,0.7)'; ctx.fillRect(fx - 1.5, ft, 3, horizon - ft);
+          ctx.fillStyle = 'rgba(255,255,255,0.9)';
+          for (let k = 0; k < 5; k++) { const yy = ft + ((clock * 40 + k * 9) % (horizon - ft)); ctx.fillRect(fx - 1, yy, 2, 3); }
+          ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.ellipse(fx, horizon - 1, 6, 1.8, 0, 0, 7); ctx.fill();
+        }
+        x += w;
+      }
+      for (let i = 0; i < 26; i++) {                     // bushes along the rim
+        const x = hash(i + 3700) * W, y = base - 4 + (hash(i + 3710) - 0.5) * 10, r = 4 + hash(i + 3720) * 6;
+        ctx.fillStyle = i % 3 ? '#4f7f3c' : '#679a4a'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.arc(x + r * 0.9, y + 1, r * 0.7, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,220,0.25)'; ctx.beginPath(); ctx.arc(x - r * 0.2, y - r * 0.35, r * 0.45, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(50,60,55,0.3)'; ctx.fillRect(0, horizon - 3, W, 3);
     } else if (L.far === 'boardwalk') {
       // a headland on the left, and a pier with a ferris wheel and a coaster on the right
       bumps('#5a3a5c', horizon, 0.3, 5);
@@ -1502,46 +1525,115 @@ body {
       ctx.beginPath(); ctx.moveTo(p.x - w.len * p.s * 0.5, p.y); ctx.lineTo(p.x + w.len * p.s * 0.5, p.y); ctx.stroke();
     }
   }
+  // the quarry walls: cut granite blocks with benches, drill marks, stains, bushes on top, and light bouncing off the water
+  function drawQuarryWalls(B) {
+    const fog = L.sky[L.sky.length - 1][1];
+    for (const s of [-1, 1]) {
+      const fb = proj(s * B.hw, 0, SHORE_Z), nb = proj(s * B.hw, 0, 0.7), ft = proj(s * B.hw, 9, SHORE_Z);
+      const lit = s < 0;                                    // the sun is to the right, so the left wall catches it
+      const tone = lit ? [194, 170, 142] : [122, 112, 112];
+      const fogC = [1, 3, 5].map(k => parseInt(fog.slice(k, k + 2), 16)), topNear = proj(s * B.hw, 7.6, 0.7), topFar = proj(s * B.hw, 7.6, SHORE_Z);
+      ctx.fillStyle = `rgb(${tone.map(v => v - 20)})`;
+      ctx.beginPath(); ctx.moveTo(fb.x, fb.y); ctx.lineTo(nb.x, nb.y); ctx.lineTo(s < 0 ? -10 : W + 10, H + 10); ctx.lineTo(s < 0 ? -10 : W + 10, fb.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(10,45,60,0.28)';                // the wall's shadow and color on the water beside it
+      { const a = proj(s * B.hw, 0, SHORE_Z), b2 = proj(s * B.hw, 0, 0.7), c = proj(s * (B.hw - (lit ? 0.8 : 2.6)), 0, 0.7), d = proj(s * (B.hw - (lit ? 0.3 : 1.2)), 0, SHORE_Z);
+        if (!lit) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.fill(); }
+        else { const rg = ctx.createLinearGradient(b2.x, 0, c.x, 0); rg.addColorStop(0, 'rgba(255,240,210,0.18)'); rg.addColorStop(1, 'rgba(255,240,210,0)'); ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b2.x, b2.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.fill(); } }
+      const blocks = [];
+      for (let z = 0.7, i = 0; z < SHORE_Z; i++) { const len = 2.5 + hash(i * 3 + (s > 0 ? 50 : 0) + 3800) * 5; blocks.push({ z0: z, z1: Math.min(SHORE_Z, z + len), off: hash(i * 5 + (s > 0 ? 70 : 0) + 3810) * 0.7, ht: 7.6 + hash(i * 7 + (s > 0 ? 90 : 0) + 3820) * 2.6, sh: hash(i + (s > 0 ? 30 : 0) + 3830), i }); z += len; }
+      for (let n = blocks.length - 1; n >= 0; n--) {
+        const bk = blocks[n], x = s * (B.hw + bk.off), P = (y, z) => proj(x, y, z);
+        const fogK = Math.min(0.45, bk.z0 / SHORE_Z * 0.5);
+        const col = tone.map((v, j) => Math.round((v + (bk.sh - 0.5) * 26) * (1 - fogK) + fogC[j] * fogK));
+        const tops = []; for (let k = 0; k <= 4; k++) { const z = bk.z0 + (bk.z1 - bk.z0) * k / 4; tops.push([z, bk.ht + (k % 4 ? (hash(bk.i * 9 + k + (s > 0 ? 7 : 0) + 4000) - 0.5) * 1.4 : 0)]); }
+        const quad = (y0, y1, z0, z1) => { const a = P(y0, z0), b = P(y0, z1), c = P(y1, z1), d = P(y1, z0); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); };
+        const g = ctx.createLinearGradient(0, P(bk.ht, bk.z0).y, 0, P(0, bk.z0).y);
+        g.addColorStop(0, `rgb(${col.map(v => v + 18)})`); g.addColorStop(0.55, `rgb(${col})`); g.addColorStop(1, `rgb(${col.map(v => v - 34)})`);
+        ctx.fillStyle = g; ctx.beginPath(); { const a = P(0, bk.z0), b = P(0, bk.z1); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); } for (let k = tops.length - 1; k >= 0; k--) { const q = P(tops[k][1], tops[k][0]); ctx.lineTo(q.x, q.y); } ctx.closePath(); ctx.fill();
+        for (let k = 0; k < 7; k++) {                       // mottled patches in the stone
+          const z = bk.z0 + (bk.z1 - bk.z0) * hash(bk.i * 17 + k + (s > 0 ? 300 : 0) + 4100), y = 0.8 + hash(bk.i * 19 + k + 4200) * (bk.ht - 2), q = P(y, z), q2 = P(y, z + 0.6 + hash(k + bk.i) * 1.2);
+          ctx.fillStyle = k % 3 === 0 ? 'rgba(255,250,235,0.09)' : k % 3 === 1 ? 'rgba(70,58,50,0.09)' : 'rgba(150,120,90,0.08)';
+          ctx.beginPath(); ctx.ellipse((q.x + q2.x) / 2, (q.y + q2.y) / 2, Math.abs(q2.x - q.x) / 2 + 2, (0.4 + hash(k * 3 + bk.i) * 0.9) * q.s, Math.atan2(q2.y - q.y, q2.x - q.x), 0, 7); ctx.fill();
+        }
+        const prev = blocks[n - 1];                         // end of the block facing us where it sticks out past the nearer one
+        if (prev && bk.off < prev.off) {
+          const a = proj(x, 0, bk.z0), b = proj(s * (B.hw + prev.off), 0, bk.z0), c = proj(s * (B.hw + prev.off), Math.min(bk.ht, prev.ht), bk.z0), d = proj(x, bk.ht, bk.z0);
+          ctx.fillStyle = `rgb(${col.map(v => v - (lit ? 34 : 18))})`; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.fill();
+        }
+        for (const by of [2.1 + bk.sh * 1.2, 4.6 + hash(bk.i + 4300) * 1.6].filter((_, k) => k === 0 || bk.sh < 0.75)) {                     // benches cut into the wall: a lit lip and a shadow under it
+          ctx.fillStyle = 'rgba(60,50,45,0.16)'; quad(by - 0.28, by, bk.z0, bk.z1); ctx.fill();
+          ctx.fillStyle = lit ? 'rgba(255,250,232,0.28)' : 'rgba(230,236,250,0.12)'; quad(by, by + 0.1, bk.z0, bk.z1); ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(60,52,46,0.1)'; ctx.lineWidth = Math.max(0.5, P(0, bk.z0).s * 0.01);   // drill marks from the old quarry saws
+        ctx.beginPath(); if (bk.sh < 0.35)
+        for (let z = bk.z0 + 0.25; z < bk.z1 - 0.1; z += 0.45) for (const [y0, y1] of [[0.6, 2.0], [2.6, 4.4]]) { const a = P(y0, z), b = P(y1, z); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(40,34,30,0.22)'; ctx.lineWidth = Math.max(0.7, P(0, bk.z0).s * 0.014);   // seam between blocks
+        { const a = P(0, bk.z0), b = P(bk.ht, bk.z0); if (bk.sh > 0.3) ctx.setLineDash([b.s * 0.6, b.s * 0.25]); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.setLineDash([]); }
+        if (bk.sh > 0.45) {                                 // rusty water stains running down from the top
+          const z = bk.z0 + (bk.z1 - bk.z0) * (0.3 + bk.sh * 0.4), w = 0.3 + bk.sh * 0.5, a = P(bk.ht, z), b = P(bk.ht * 0.25, z);
+          const sg = ctx.createLinearGradient(0, a.y, 0, b.y); sg.addColorStop(0, 'rgba(120,80,45,0.38)'); sg.addColorStop(1, 'rgba(120,80,45,0)');
+          ctx.fillStyle = sg; quad(bk.ht * 0.25, bk.ht, z, z + w); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(30,45,40,0.45)'; quad(0, 0.45, bk.z0, bk.z1); ctx.fill();          // wet band at the waterline
+        ctx.strokeStyle = 'rgba(210,250,255,0.18)'; ctx.lineWidth = Math.max(0.6, P(0, bk.z0).s * 0.012);   // light bouncing off the water
+        ctx.beginPath();
+        for (let k = 0; k < 2; k++) {
+          const yb = 0.7 + k * 0.5; let first = true;
+          for (let z = bk.z0; z <= bk.z1; z += 0.35) { const q = P(yb + Math.sin(clock * 1.8 + z * 2.1 + k * 2) * 0.12, z); if (first) { ctx.moveTo(q.x, q.y); first = false; } else ctx.lineTo(q.x, q.y); }
+        }
+        ctx.stroke();
+        if (lit && bk.i === 4) {                            // spray paint from kids who came before
+          const o = P(3.6, bk.z0 + 0.4), oz = P(3.6, bk.z0 + 1.4), oy = P(4.6, bk.z0 + 0.4);
+          ctx.save(); ctx.transform(oz.x - o.x, oz.y - o.y, o.x - oy.x, o.y - oy.y, o.x, o.y);
+          ctx.font = '800 0.62px Inter, system-ui, sans-serif'; ctx.textBaseline = 'alphabetic';
+          ctx.fillStyle = 'rgba(255,93,143,0.85)'; ctx.fillText("CLASS OF '86", 0, 0);
+          ctx.fillStyle = 'rgba(46,196,182,0.85)'; ctx.fillText('J.B. + K.M.', 0.3, 0.9);
+          ctx.restore();
+        }
+        ctx.strokeStyle = 'rgba(50,40,34,0.3)'; ctx.lineWidth = Math.max(0.6, P(0, bk.z0).s * 0.012);   // natural fractures in the rock
+        ctx.beginPath();
+        for (let k = 0; k < 3; k++) {
+          let z = bk.z0 + (bk.z1 - bk.z0) * hash(bk.i * 23 + k + (s > 0 ? 500 : 0) + 4400), y = 1 + hash(bk.i * 29 + k + 4500) * (bk.ht - 2);
+          let q = P(y, z); ctx.moveTo(q.x, q.y);
+          for (let m = 0; m < 4; m++) { z += 0.25 + hash(m + k * 5 + bk.i) * 0.5; y += (hash(m * 3 + k + bk.i * 2) - 0.6) * 0.8; if (z > bk.z1) break; q = P(y, z); ctx.lineTo(q.x, q.y); }
+        }
+        ctx.stroke();
+        if (hash(bk.i + (s > 0 ? 77 : 0) + 4600) > 0.45) {   // a pine tree on the rim
+          const z = (bk.z0 + bk.z1) / 2, b0 = P(tops[2][1], z), t0 = P(tops[2][1] + 3.2 + hash(bk.i + 4610) * 1.8, z), hw2 = Math.min(60, (t0.y - b0.y) * -0.28);
+          if (t0.y > -20 || b0.y > 0) {
+            ctx.fillStyle = '#5a4030'; ctx.fillRect(b0.x - hw2 * 0.08, (b0.y + t0.y) / 2, hw2 * 0.16, (b0.y - t0.y) / 2);
+            for (let m = 0; m < 3; m++) { const yy = t0.y + (b0.y - t0.y) * (m + 1) / 3.6, ww = hw2 * (m + 1) / 3; ctx.fillStyle = m % 2 ? '#3f6e36' : '#477a3c'; ctx.beginPath(); ctx.moveTo(b0.x, t0.y + (b0.y - t0.y) * m / 4); ctx.lineTo(b0.x + ww, yy); ctx.lineTo(b0.x - ww, yy); ctx.fill(); }
+            ctx.fillStyle = 'rgba(255,255,220,0.15)'; ctx.beginPath(); ctx.moveTo(b0.x, t0.y); ctx.lineTo(b0.x + hw2 * 0.9, t0.y + (b0.y - t0.y) * 0.83); ctx.lineTo(b0.x + hw2 * 0.3, t0.y + (b0.y - t0.y) * 0.83); ctx.fill();
+          }
+        }
+        for (let k = 0; k < 4; k++) {                       // bushes and little trees along the rim
+          const z = bk.z0 + (bk.z1 - bk.z0) * (k + 0.5) / 4, kk = Math.min(3, Math.round((k + 0.5))), q = P(tops[kk][1] + 0.15, z), r = Math.min(34, Math.max(2.5, (0.22 + hash(bk.i * 4 + k + (s > 0 ? 40 : 0) + 3900) * 0.4) * q.s));
+          if (hash(bk.i * 4 + k + 3970) < 0.15) continue;
+          if (q.y < -r * 2) continue;
+          ctx.fillStyle = k % 2 ? '#4f7f3c' : '#5f8f44'; ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 7); ctx.arc(q.x - s * r * 0.8, q.y + r * 0.3, r * 0.7, 0, 7); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,220,0.22)'; ctx.beginPath(); ctx.arc(q.x + r * 0.25, q.y - r * 0.35, r * 0.45, 0, 7); ctx.fill();
+          if (hash(bk.i * 4 + k + 3950) > 0.7) { const hv = P(bk.ht - 1.6, z); const g2 = ctx.createLinearGradient(0, q.y, 0, hv.y); g2.addColorStop(0, 'rgba(70,110,50,0.75)'); g2.addColorStop(1, 'rgba(70,110,50,0)'); ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(q.x - r * 0.4, q.y); ctx.lineTo(q.x + r * 0.4, q.y); ctx.lineTo(hv.x, hv.y); ctx.fill(); }
+        }
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(fb.x, fb.y); ctx.lineTo(nb.x, nb.y); ctx.stroke();
+      const rub = [];                                       // fallen blocks and boulders at the foot of the wall
+      for (let i = 0; i < 12; i++) rub.push({ z: 3 + hash(i + (s > 0 ? 40 : 0) + 4700) * 48, x: s * (B.hw - 0.15 - hash(i + 4710) * 0.5), r: 0.35 + hash(i + (s > 0 ? 9 : 0) + 4720) * 0.55, i });
+      rub.sort((a, b) => b.z - a.z);
+      for (const r of rub) {
+        const q = proj(r.x, 0, r.z), rr = r.r * q.s, sq = r.i % 3 === 0;
+        ctx.fillStyle = `rgb(${tone.map(v => v - 28 + Math.round(hash(r.i) * 20))})`;
+        ctx.beginPath(); if (sq) { ctx.moveTo(q.x - rr, q.y); ctx.lineTo(q.x - rr * 0.8, q.y - rr * 0.9); ctx.lineTo(q.x + rr * 0.7, q.y - rr); ctx.lineTo(q.x + rr, q.y); } else ctx.ellipse(q.x, q.y, rr, rr * 0.75, 0, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = lit ? 'rgba(255,248,230,0.35)' : 'rgba(230,236,250,0.18)';
+        ctx.beginPath(); ctx.ellipse(q.x + rr * 0.15, q.y - rr * 0.6, rr * 0.5, rr * 0.18, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, rr * 1.1, rr * 0.12, 0, 0, Math.PI); ctx.stroke();
+      }
+    }
+  }
   function drawBanks() {
     const B = L.banks; if (!B) return;
-    if (B.kind === 'cliff') {
-      for (const s of [-1, 1]) {
-        const fb = proj(s * B.hw, 0, SHORE_Z), nb = proj(s * B.hw, 0, 0.7), ft = proj(s * B.hw, 9, SHORE_Z), nt = proj(s * B.hw, 9, 2);
-        const g = ctx.createLinearGradient(nb.x, 0, fb.x, 0);
-        g.addColorStop(0, '#8a7a60'); g.addColorStop(1, '#c4b293');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.moveTo(fb.x, fb.y); ctx.lineTo(nb.x, nb.y); ctx.lineTo(s < 0 ? -10 : W + 10, H + 10); ctx.lineTo(s < 0 ? -10 : W + 10, Math.min(nt.y, 0) - 10); ctx.lineTo(ft.x, ft.y); ctx.closePath(); ctx.fill();
-        // rock layers: bands of slightly different stone
-        for (let k = 0; k < 9; k++) {
-          const a0 = proj(s * B.hw, k, SHORE_Z), a1 = proj(s * B.hw, k + 1, SHORE_Z), b0 = proj(s * B.hw, k, 1.2), b1 = proj(s * B.hw, k + 1, 1.2);
-          ctx.fillStyle = ['rgba(120,90,60,0.10)', 'rgba(255,240,210,0.08)', 'rgba(90,80,70,0.12)'][k % 3];
-          ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(b0.x, b0.y); ctx.lineTo(b1.x, b1.y); ctx.lineTo(a1.x, a1.y); ctx.fill();
-          ctx.strokeStyle = 'rgba(80,66,48,0.35)'; ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(b0.x, b0.y); ctx.stroke();
-        }
-        const wl0 = proj(s * B.hw, 0.6, SHORE_Z), wl1 = proj(s * B.hw, 0.6, 1.2), w00 = proj(s * B.hw, 0, 1.2);   // dark water stain
-        ctx.fillStyle = 'rgba(40,50,45,0.3)'; ctx.beginPath(); ctx.moveTo(fb.x, fb.y); ctx.lineTo(w00.x, w00.y); ctx.lineTo(wl1.x, wl1.y); ctx.lineTo(wl0.x, wl0.y); ctx.fill();
-        ctx.strokeStyle = 'rgba(55,42,30,0.55)'; ctx.lineCap = 'round';
-        for (let i = 0; i < 16; i++) {          // cracks
-          const z = 3 + hash(i + 40 + s * 100) * 50, y = 1 + hash(i + 60 + s * 100) * 7;
-          let q = proj(s * B.hw, y, z); ctx.lineWidth = Math.max(0.7, q.s * 0.025);
-          ctx.beginPath(); ctx.moveTo(q.x, q.y);
-          for (let k = 1; k <= 4; k++) { q = proj(s * B.hw, y - k * 0.35, z + (hash(i + k) - 0.5) * 0.8); ctx.lineTo(q.x, q.y); }
-          ctx.stroke();
-        }
-        for (let i = 0; i < 10; i++) {          // moss and ivy hanging from the top
-          const z = 2.5 + hash(i + 140 + s * 50) * 52, len = 1 + hash(i + 160 + s * 50) * 3;
-          const a = proj(s * B.hw, 9, z), b = proj(s * B.hw, 9 - len, z), w = Math.max(2, 0.25 * a.s);
-          const g2 = ctx.createLinearGradient(0, a.y, 0, b.y); g2.addColorStop(0, 'rgba(70,110,50,0.8)'); g2.addColorStop(1, 'rgba(70,110,50,0)');
-          ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(a.x - w, a.y); ctx.lineTo(a.x + w, a.y); ctx.lineTo(b.x, b.y); ctx.fill();
-        }
-        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(fb.x, fb.y); ctx.lineTo(nb.x, nb.y); ctx.stroke();
-        ctx.fillStyle = '#4f7a3a';
-        ctx.beginPath(); ctx.moveTo(ft.x, ft.y); ctx.lineTo(nt.x, nt.y); ctx.lineTo(nt.x + s * 30, nt.y - 8); ctx.lineTo(ft.x + s * 4, ft.y - 4); ctx.fill();
-      }
-      return;
-    }
+    if (B.kind === 'cliff') { drawQuarryWalls(B); return; }
     for (const s of [-1, 1]) {
       const far = proj(s * B.hw, 0, SHORE_Z), near = proj(s * B.hw, 0, 0.7);
       ctx.fillStyle = B.color;
@@ -1809,17 +1901,53 @@ body {
     drawGround();
     if (!L.ledge) return;
     const y0 = H * 0.8;
+    const edge = [[0, y0 + 16], [W * 0.14, y0 + 3], [W * 0.38, y0 - 2], [W * 0.66, y0 + 4], [W * 0.86, y0 + 12], [W, y0 + 26]];
     const g = ctx.createLinearGradient(0, y0, 0, H);
-    g.addColorStop(0, '#b3a284'); g.addColorStop(1, '#6e604a');
+    g.addColorStop(0, '#d3c8b7'); g.addColorStop(0.35, '#b2a593'); g.addColorStop(1, '#6f6557');
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.moveTo(0, y0 + 14); ctx.lineTo(W * 0.2, y0); ctx.lineTo(W * 0.62, y0 + 6); ctx.lineTo(W, y0 + 24); ctx.lineTo(W, H + 5); ctx.lineTo(0, H + 5); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(60,48,34,0.5)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(W * 0.12, y0 + 30); ctx.lineTo(W * 0.3, y0 + 48); ctx.lineTo(W * 0.28, y0 + 80); ctx.moveTo(W * 0.7, y0 + 26); ctx.lineTo(W * 0.82, y0 + 60); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(W * 0.2, y0, W * 0.42, 2);
-    for (let i = 0; i < 60; i++) {           // grit and lichen on the rock
-      const x = hash(i + 800) * W, y = y0 + 16 + hash(i + 810) * (H - y0 - 16), r = 0.8 + hash(i + 820) * 2.2;
-      ctx.fillStyle = i % 7 === 0 ? 'rgba(140,160,90,0.5)' : i % 2 ? 'rgba(60,48,34,0.35)' : 'rgba(255,245,220,0.25)';
-      ctx.beginPath(); ctx.ellipse(x, y, r * (i % 7 === 0 ? 3 : 1), r, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, H + 5); for (const [x, y] of edge) ctx.lineTo(x, y); ctx.lineTo(W, H + 5); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,252,240,0.7)'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';   // sunlit lip of the ledge
+    ctx.beginPath(); edge.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+    const lg = ctx.createLinearGradient(0, y0, 0, y0 + 22); lg.addColorStop(0, 'rgba(255,250,235,0.35)'); lg.addColorStop(1, 'rgba(255,250,235,0)');
+    ctx.fillStyle = lg; ctx.fillRect(0, y0 - 4, W, 26);
+    ctx.strokeStyle = 'rgba(70,58,44,0.55)'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';   // cracks and seams in the granite
+    ctx.beginPath(); ctx.moveTo(W * 0.08, y0 + 30); ctx.lineTo(W * 0.2, y0 + 44); ctx.lineTo(W * 0.19, y0 + 70); ctx.lineTo(W * 0.26, y0 + 100);
+    ctx.moveTo(W * 0.74, y0 + 20); ctx.lineTo(W * 0.8, y0 + 52); ctx.lineTo(W * 0.92, y0 + 66);
+    ctx.moveTo(W * 0.45, y0 + 90); ctx.lineTo(W * 0.6, y0 + 110); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,250,235,0.3)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W * 0.08 + 1, y0 + 31.5); ctx.lineTo(W * 0.2 + 1, y0 + 45.5); ctx.moveTo(W * 0.74 + 1.5, y0 + 21); ctx.lineTo(W * 0.8 + 1.5, y0 + 53); ctx.stroke();
+    for (let i = 0; i < 90; i++) {           // speckled granite and lichen
+      const x = hash(i + 800) * W, y = y0 + 14 + hash(i + 810) * (H - y0 - 14), r = 0.6 + hash(i + 820) * 1.8;
+      ctx.fillStyle = i % 9 === 0 ? 'rgba(170,180,90,0.55)' : i % 9 === 1 ? 'rgba(210,140,70,0.4)' : i % 2 ? 'rgba(50,42,36,0.4)' : 'rgba(255,248,235,0.4)';
+      ctx.beginPath(); ctx.ellipse(x, y, r * (i % 9 < 2 ? 3.5 : 1), r * (i % 9 < 2 ? 1.6 : 1), 0, 0, 7); ctx.fill();
+    }
+    {                                         // a striped beach towel laid out on the rock
+      const tx = -W * 0.04, ty = y0 + 44, tw = W * 0.22, th = (H - ty) * 0.42;
+      ctx.save(); ctx.translate(tx, ty); ctx.transform(1, 0, -0.18, 1, 0, 0);
+      ctx.fillStyle = 'rgba(40,30,25,0.25)'; ctx.fillRect(3, 3, tw, th);
+      const cols = ['#ff5d8f', '#ffd23f', '#2ec4b6', '#f4f1ea', '#7b5cff'];
+      for (let k = 0; k < 5; k++) { ctx.fillStyle = cols[k]; ctx.fillRect(0, th * k / 5, tw, th / 5 + 0.5); }
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(0, 0, tw, 3);
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.setLineDash([2, 3]); ctx.lineWidth = 1; ctx.strokeRect(1, 1, tw - 2, th - 2); ctx.setLineDash([]);
+      ctx.restore();
+    }
+    {                                         // a boombox playing tunes on the ledge
+      const bw = Math.min(W * 0.2, 86), bh = bw * 0.48, bx = W * 0.97 - bw, by = y0 + 30;
+      ctx.fillStyle = 'rgba(40,30,25,0.3)'; ctx.beginPath(); ctx.ellipse(bx + bw / 2, by + bh + 2, bw * 0.55, 4, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#3a3a40'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(bx + bw * 0.22, by); ctx.lineTo(bx + bw * 0.26, by - bh * 0.28); ctx.lineTo(bx + bw * 0.74, by - bh * 0.28); ctx.lineTo(bx + bw * 0.78, by); ctx.stroke();
+      ctx.strokeStyle = '#d8d8dc'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx + bw * 0.82, by); ctx.lineTo(bx + bw * 1.02, by - bh * 0.9); ctx.stroke();   // antenna
+      ctx.fillStyle = '#c9c9cf'; ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = '#9a9aa2'; ctx.fillRect(bx, by + bh - 3, bw, 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(bx, by, bw, 1.5);
+      const pump = music && started ? 1 + 0.05 * Math.max(0, Math.sin(clock * 15)) : 1;
+      for (const cx of [bx + bw * 0.2, bx + bw * 0.8]) {
+        ctx.fillStyle = '#2a2a30'; ctx.beginPath(); ctx.arc(cx, by + bh * 0.55, bh * 0.36 * pump, 0, 7); ctx.fill();
+        ctx.fillStyle = '#55555e'; ctx.beginPath(); ctx.arc(cx, by + bh * 0.55, bh * 0.14 * pump, 0, 7); ctx.fill();
+      }
+      ctx.fillStyle = '#2a2a30'; ctx.fillRect(bx + bw * 0.38, by + bh * 0.3, bw * 0.24, bh * 0.38);
+      ctx.fillStyle = '#ff5d8f'; ctx.fillRect(bx + bw * 0.4, by + bh * 0.12, bw * 0.04, bh * 0.08);
+      ctx.fillStyle = '#7dff9e'; ctx.fillRect(bx + bw * 0.46, by + bh * 0.12, bw * 0.04, bh * 0.08);
+      ctx.fillStyle = '#c9b07a'; ctx.fillRect(bx + bw * 0.41, by + bh * 0.4, bw * 0.18, bh * 0.16);   // the tape
     }
   }
   function drawWind() {
@@ -1986,7 +2114,7 @@ body {
     lake: [{ t: 'motorboat', x: -12, z: 26, vx: 4.2, range: 14, w: 2.2, d: 0.6, h: 0.9 }, { t: 'loon', x: 1.4, z: 14 }, { t: 'loon', x: -2.2, z: 33 },
       { t: 'buoy', x: -0.6, z: 20 }, { t: 'buoy', x: 2.6, z: 38 }],
     quarry: [{ t: 'tube', x: -1.2, z: 11, c: '#ff5d8f' }, { t: 'tube', x: 1.5, z: 19, c: '#ffd23f' }, { t: 'tube', x: -0.4, z: 29, c: '#2ec4b6' },
-      { t: 'swing', x: -3, cx: -2.5, amp: 3, z: 22, w: 0.4, d: 0.4, h: 2.6 }, { t: 'raft', x: 2.2, z: 34, w: 1.3, d: 1, h: 0.4 }],
+      { t: 'junker', x: -2.4, z: 22, w: 1.25, d: 0.7, h: 0.75 }, { t: 'raft', x: 2.2, z: 34, w: 1.3, d: 1, h: 0.4 }],
     swamp: [{ t: 'gator', x: -6, z: 21, vx: 0.95, range: 9, w: 1.7, d: 0.55, h: 0.4 },
       { t: 'pad', x: -1.9, z: 10, r: 0.7 }, { t: 'pad', x: 1.4, z: 15, r: 0.75, flower: true }, { t: 'frog', x: 1.4, z: 15 },
       { t: 'pad', x: -0.5, z: 27, r: 0.8 }, { t: 'pad', x: 2.4, z: 32, r: 0.8, flower: true }, { t: 'frog', x: 2.4, z: 32 }, { t: 'pad', x: -2.6, z: 38, r: 0.8 },
@@ -2242,7 +2370,7 @@ body {
   function onBlock(o, x, z) {
     if (o.t === 'ducks') { quack(); o.vx *= 2.5; }
     else if (o.t === 'ufo') { zap(); shake = 0.3; }
-    else if (o.t === 'bike') { clack(); shake = 0.3; }
+    else if (o.t === 'bike' || o.t === 'junker') { clack(); shake = 0.35; }
     else if (o.t === 'gator') { thunk(); shake = 0.4; o.vx *= 1.8; }
     else if (o.t === 'reeds') { plip(0, true); }
     else { thunk(); shake = 0.35; }
@@ -2424,6 +2552,27 @@ body {
       ctx.fillStyle = '#2b2b30'; ctx.fillRect(mo.x - 0.15 * k, mo.y - 0.2 * k, 0.3 * k, 0.55 * k);
       ctx.fillStyle = 'rgba(255,255,255,0.75)';
       for (let i = 0; i < 6; i++) { const t = (clock * 4 + i / 6) % 1; ctx.beginPath(); ctx.arc(sw.x - d * t * 0.8 * k, sw.y - Math.sin(t * Math.PI) * 0.4 * k, Math.max(1, 0.06 * k), 0, 7); ctx.fill(); }
+    } else if (o.t === 'junker') {
+      // an old rusty car sunk in the quarry, roof and windshield sticking out
+      const bob = Math.sin(clock * 0.7) * 0.01, a = proj(o.x - 1.1, bob, o.z), b = proj(o.x + 1.1, bob, o.z);
+      const r0 = proj(o.x - 0.75, 0.62, o.z), r1 = proj(o.x + 0.45, 0.62, o.z), w0 = proj(o.x + 0.95, 0.05, o.z), t0 = proj(o.x - 1.0, 0.25, o.z);
+      ctx.fillStyle = 'rgba(10,40,50,0.35)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + 0.06 * k, 1.5 * k, 0.16 * k, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = o.hit ? '#b8603a' : '#9a4a2c';                       // faded red body
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(t0.x, t0.y); ctx.quadraticCurveTo(r0.x - 0.15 * k, r0.y, r0.x, r0.y); ctx.lineTo(r1.x, r1.y);
+      ctx.quadraticCurveTo(r1.x + 0.35 * k, r1.y + 0.05 * k, w0.x, w0.y); ctx.lineTo(b.x, b.y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(120,60,30,0.7)';                                // rust patches
+      for (let i = 0; i < 5; i++) { const q = proj(o.x - 0.8 + hash(i + 3500) * 1.5, 0.1 + hash(i + 3510) * 0.45, o.z); ctx.beginPath(); ctx.ellipse(q.x, q.y, (0.08 + hash(i + 3520) * 0.1) * k, 0.05 * k, 0, 0, 7); ctx.fill(); }
+      ctx.fillStyle = 'rgba(40,60,70,0.85)';                                // windows
+      const s0 = proj(o.x - 0.62, 0.55, o.z), s1 = proj(o.x + 0.38, 0.55, o.z), s2 = proj(o.x + 0.75, 0.18, o.z), s3 = proj(o.x - 0.85, 0.22, o.z);
+      ctx.beginPath(); ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.lineTo(s3.x, s3.y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = o.hit ? '#b8603a' : '#9a4a2c'; ctx.lineWidth = Math.max(1, 0.07 * k);
+      const m0 = proj(o.x - 0.12, 0.58, o.z), m1 = proj(o.x - 0.05, 0.2, o.z); ctx.beginPath(); ctx.moveTo(m0.x, m0.y); ctx.lineTo(m1.x, m1.y); ctx.stroke();
+      ctx.strokeStyle = 'rgba(220,240,255,0.35)'; ctx.lineWidth = Math.max(0.8, 0.03 * k);   // glint on the glass
+      ctx.beginPath(); ctx.moveTo(s1.x - 0.25 * k, s1.y + 0.05 * k); ctx.lineTo(s2.x - 0.35 * k, s2.y - 0.05 * k); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,240,220,0.18)'; ctx.fillRect(r0.x, r0.y - 0.02 * k, r1.x - r0.x, Math.max(1, 0.04 * k));   // light on the roof
+      ctx.strokeStyle = `rgba(${L.glint},0.5)`; ctx.lineWidth = 1;          // water lapping at the sides
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, 1.25 * k, 0.1 * k, 0, 0.1, Math.PI - 0.1); ctx.stroke();
+      ctx.fillStyle = '#e8dcc0'; const lp = proj(o.x + 1.0, 0.12, o.z); ctx.beginPath(); ctx.arc(lp.x, lp.y, Math.max(0.8, 0.05 * k), 0, 7); ctx.fill();   // headlight
     } else if (o.t === 'swing') {
       // a rope swing off the quarry wall, with a kid riding it
       const anchor = proj(o.cx - 1, 5.6, o.z), kid = proj(o.x, 1.6, o.z), kk = kid.s;
@@ -2478,7 +2627,7 @@ body {
     }
     ctx.restore();
   }
-  const BLOCKER_TYPES = ['gator', 'bobber', 'fisher', 'ducks', 'reeds', 'canoe', 'wader', 'branch', 'bike', 'motorboat', 'swing', 'raft', 'surfer', 'ufo'];
+  const BLOCKER_TYPES = ['gator', 'bobber', 'fisher', 'ducks', 'reeds', 'canoe', 'wader', 'branch', 'bike', 'motorboat', 'junker', 'raft', 'surfer', 'ufo'];
 
   // ---------- the kids ----------
   const KIDS = [
